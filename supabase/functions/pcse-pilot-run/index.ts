@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const ARCHIVE_LAG_DAYS = 6;
 const MAX_DURATION_DAYS = 365;
-const RUNNER_VERSION = 3;
+const RUNNER_VERSION = 4;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -28,6 +28,13 @@ function finite(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? '')
+    .trim()
+    .toLocaleLowerCase('tr-TR')
+    .replace(/\s+/g, ' ');
 }
 
 function isoDateDaysAgo(days: number) {
@@ -97,6 +104,71 @@ async function persistRun(serviceClient: any, values: Record<string, unknown>) {
   if (error) console.error('[pcse-pilot-run] run persistence failed', error.message);
 }
 
+async function queueVarietyMappingRequest(serviceClient: any, inputs: any) {
+  const localVarietyName = String(inputs?.context?.farmer_variety_name ?? '').trim();
+  const mappedVarietyKey = String(inputs?.context?.wofost_variety_key ?? '').trim();
+  const wofostCropKey = String(inputs?.context?.wofost_crop_key ?? '').trim();
+  const cropName = String(inputs?.context?.crop_identity ?? wofostCropKey).trim();
+
+  if (!localVarietyName || mappedVarietyKey || !wofostCropKey || !cropName) return false;
+
+  const normalizedLocalVarietyName = normalizeText(localVarietyName);
+  if (!normalizedLocalVarietyName) return false;
+
+  const { data: existing, error: lookupError } = await serviceClient
+    .from('pcse_variety_mapping_requests')
+    .select('id,status')
+    .eq('crop_name', cropName)
+    .eq('normalized_local_variety_name', normalizedLocalVarietyName)
+    .eq('model_version', '7.2')
+    .maybeSingle();
+
+  if (lookupError) {
+    console.warn('[pcse-pilot-run] variety mapping request lookup failed', lookupError.message);
+    return false;
+  }
+
+  const now = new Date().toISOString();
+  if (existing?.id) {
+    const { error } = await serviceClient
+      .from('pcse_variety_mapping_requests')
+      .update({
+        local_variety_name: localVarietyName,
+        wofost_crop_key: wofostCropKey,
+        last_seen_at: now,
+        updated_at: now,
+      })
+      .eq('id', existing.id);
+    if (error) {
+      console.warn('[pcse-pilot-run] variety mapping request refresh failed', error.message);
+      return false;
+    }
+    return true;
+  }
+
+  const { error } = await serviceClient
+    .from('pcse_variety_mapping_requests')
+    .insert({
+      crop_name: cropName,
+      local_variety_name: localVarietyName,
+      normalized_local_variety_name: normalizedLocalVarietyName,
+      wofost_crop_key: wofostCropKey,
+      model_family: 'WOFOST',
+      model_version: '7.2',
+      status: 'pending',
+      first_seen_at: now,
+      last_seen_at: now,
+      created_at: now,
+      updated_at: now,
+    });
+
+  if (error) {
+    console.warn('[pcse-pilot-run] variety mapping request insert failed', error.message);
+    return false;
+  }
+  return true;
+}
+
 async function loadCachedCompletedRun(
   serviceClient: any,
   userId: string,
@@ -132,7 +204,6 @@ async function loadCachedCompletedRun(
 
   return {
     result: output,
-    engineVersion: data?.engine_version ?? output.engine_version ?? null,
     completedAt: data?.completed_at ?? null,
   };
 }
@@ -162,6 +233,7 @@ Deno.serve(async (req) => {
 
     const { user, serviceClient, supabaseUrl, anonKey, authorization } = await authenticatedClients(req);
     const inputs = await loadInputAdapters(supabaseUrl, anonKey, authorization, fieldId);
+    const mappingRequestQueued = await queueVarietyMappingRequest(serviceClient, inputs);
     const missing = new Set<string>(Array.isArray(inputs?.missing_inputs) ? inputs.missing_inputs.map(String) : []);
 
     const location = inputs?.adapters?.field_location;
@@ -230,6 +302,7 @@ Deno.serve(async (req) => {
         production_authority: false,
         water_stress_authority: false,
         missing_inputs: Array.from(missing).sort(),
+        variety_mapping_request_queued: mappingRequestQueued,
         note: 'Eksik gerçek fenoloji girdileri nedeniyle PCSE çalıştırılmadı; sentetik ürün, çeşit veya tarih üretilmedi.',
       });
     }
@@ -252,12 +325,7 @@ Deno.serve(async (req) => {
       model: 'Wofost72_PP',
     });
 
-    const cached = await loadCachedCompletedRun(
-      serviceClient,
-      user.id,
-      fieldId,
-      fingerprint,
-    );
+    const cached = await loadCachedCompletedRun(serviceClient, user.id, fieldId, fingerprint);
     if (cached) {
       return json({
         ok: true,
