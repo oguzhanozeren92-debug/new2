@@ -59,6 +59,7 @@ function resolveReferenceProfile(profiles: any[], crop: unknown, subtype: unknow
     if (!normalizedSubtype) return null;
     return candidates.find((profile) => profile.crop_subtype === normalizedSubtype) ?? null;
   }
+
   return candidates.find((profile) => profile.crop_subtype == null) ?? candidates[0] ?? null;
 }
 
@@ -142,7 +143,9 @@ Deno.serve(async (req: Request) => {
     });
 
     const { data: authData, error: authError } = await userClient.auth.getUser();
-    if (authError || !authData.user) return json({ ok: false, error: 'Geçerli kullanıcı oturumu gerekli.' }, 401);
+    if (authError || !authData.user) {
+      return json({ ok: false, error: 'Geçerli kullanıcı oturumu gerekli.' }, 401);
+    }
 
     const { data: field, error: fieldError } = await serviceClient
       .from('fields')
@@ -153,7 +156,9 @@ Deno.serve(async (req: Request) => {
     if (fieldError) throw fieldError;
     if (!field) return json({ ok: false, error: 'Tarla bulunamadı veya kullanıcıya ait değil.' }, 404);
 
-    const [profilesResult, snapshotResult, observationResult] = await Promise.all([
+    const today = new Date().toISOString().slice(0, 10);
+
+    const [profilesResult, snapshotResult, observationsResult] = await Promise.all([
       serviceClient
         .from('crop_water_reference_profiles')
         .select('crop_key,display_name,crop_subtype,aliases,kcb_initial,kcb_mid,kcb_end,kcb_source_label,kcb_source_url,reference_version'),
@@ -171,13 +176,12 @@ Deno.serve(async (req: Request) => {
         .select('id,season_id,observed_on,stage,notes,created_at')
         .eq('field_id', fieldId)
         .eq('user_id', authData.user.id)
-        .order('observed_on', { ascending: false })
+        .eq('observed_on', today)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .limit(20),
     ]);
 
-    for (const result of [profilesResult, snapshotResult, observationResult]) {
+    for (const result of [profilesResult, snapshotResult, observationsResult]) {
       if (result.error) throw result.error;
     }
 
@@ -186,46 +190,84 @@ Deno.serve(async (req: Request) => {
       field.crop,
       field.crop_subtype,
     );
-    const snapshot = snapshotResult.data;
-    const observation = observationResult.data;
-    const stageResolution = resolveStage(snapshot?.phenology_stage);
-    const kcb = interpolateKcb(profile, stageResolution);
 
-    const sameDay = Boolean(
-      snapshot?.snapshot_date &&
-      observation?.observed_on &&
-      String(snapshot.snapshot_date) === String(observation.observed_on),
+    const snapshot = snapshotResult.data;
+    const observations = Array.isArray(observationsResult.data)
+      ? observationsResult.data
+      : [];
+
+    const canonicalObservations = observations.filter((observation) => resolveStage(observation?.stage) !== null);
+    const distinctObservedStages = [
+      ...new Set(canonicalObservations.map((observation) => normalizeText(observation.stage))),
+    ];
+    const hasInvalidObservation = canonicalObservations.length !== observations.length;
+    const hasConflictingObservations = distinctObservedStages.length > 1;
+    const authoritativeObservation = !hasInvalidObservation && !hasConflictingObservations && distinctObservedStages.length === 1
+      ? canonicalObservations[0]
+      : null;
+
+    const snapshotIsCurrent = Boolean(
+      snapshot?.snapshot_date && String(snapshot.snapshot_date) === today && resolveStage(snapshot.phenology_stage),
     );
-    const sameStage = Boolean(
-      snapshot?.phenology_stage &&
-      observation?.stage &&
-      normalizeText(snapshot.phenology_stage) === normalizeText(observation.stage),
+    const automaticStage = snapshotIsCurrent
+      ? normalizeText(snapshot?.phenology_stage)
+      : null;
+    const observedStage = authoritativeObservation
+      ? normalizeText(authoritativeObservation.stage)
+      : null;
+    const effectiveStage = observedStage ?? automaticStage;
+    const stageSource = observedStage
+      ? 'field_observation'
+      : automaticStage
+        ? 'model_snapshot'
+        : null;
+    const stageResolution = resolveStage(effectiveStage);
+    const kcb = interpolateKcb(profile, stageResolution);
+    const stageDisagreement = Boolean(
+      observedStage && automaticStage && observedStage !== automaticStage,
     );
-    const observedStageIsCanonical = resolveStage(observation?.stage) !== null;
+
     const validated = Boolean(
-      profile && kcb !== null && sameDay && sameStage && observedStageIsCanonical,
+      profile &&
+      authoritativeObservation &&
+      !hasInvalidObservation &&
+      !hasConflictingObservations &&
+      stageResolution &&
+      kcb !== null,
     );
 
     const missingInputs: string[] = [];
     if (!profile) missingInputs.push('fao56_basal_kcb_reference');
-    if (!snapshot || !stageResolution || kcb === null) missingInputs.push('current_phenology_stage');
-    if (!observation) missingInputs.push('same_day_field_growth_observation');
-    else {
-      if (!sameDay) missingInputs.push('same_day_field_growth_observation');
-      if (!observedStageIsCanonical) missingInputs.push('canonical_field_growth_stage');
-      if (!sameStage) missingInputs.push('field_observation_stage_match');
+    if (!observations.length) missingInputs.push('same_day_field_growth_observation');
+    if (hasInvalidObservation) missingInputs.push('canonical_field_growth_stage');
+    if (hasConflictingObservations) missingInputs.push('conflicting_same_day_field_growth_observations');
+    if (!authoritativeObservation && !automaticStage) missingInputs.push('current_phenology_stage');
+
+    const warnings: string[] = [];
+    if (stageDisagreement) {
+      warnings.push('model_stage_disagrees_with_field_observation');
     }
+    if (hasConflictingObservations) {
+      warnings.push('multiple_distinct_field_growth_stages_recorded_for_today');
+    }
+    if (hasInvalidObservation) {
+      warnings.push('non_canonical_field_growth_stage_recorded_for_today');
+    }
+
+    const status = validated
+      ? 'validated'
+      : hasInvalidObservation || hasConflictingObservations
+        ? 'blocked'
+        : kcb !== null
+          ? 'shadow_candidate'
+          : 'blocked';
 
     return json({
       ok: true,
       field_id: fieldId,
       production_authority: false,
       input_authority: 'server-derived',
-      status: validated
-        ? 'validated'
-        : kcb !== null
-          ? 'shadow_candidate'
-          : 'blocked',
+      status,
       validated,
       crop_key: profile?.crop_key ?? null,
       kcb: kcb === null ? null : round(kcb, 3),
@@ -234,31 +276,42 @@ Deno.serve(async (req: Request) => {
         mid: Number(profile.kcb_mid),
         end: Number(profile.kcb_end),
       } : null,
-      phenology: snapshot ? {
-        stage: snapshot.phenology_stage ?? null,
-        stage_label: snapshot.stage_label ?? null,
-        snapshot_date: snapshot.snapshot_date ?? null,
-        coefficient_confidence: snapshot.coefficient_confidence ?? null,
-        source: snapshot.source_label ?? null,
-      } : null,
-      field_observation: observation ? {
-        id: observation.id,
-        observed_on: observation.observed_on,
-        stage: observation.stage,
-        same_day_as_snapshot: sameDay,
-        same_stage_as_snapshot: sameStage,
-        canonical_stage: observedStageIsCanonical,
-      } : null,
+      phenology: {
+        effective_stage: effectiveStage,
+        stage_source: stageSource,
+        model_stage: automaticStage,
+        model_stage_label: snapshotIsCurrent ? snapshot?.stage_label ?? null : null,
+        snapshot_date: snapshotIsCurrent ? snapshot?.snapshot_date ?? null : null,
+        coefficient_confidence: snapshotIsCurrent ? snapshot?.coefficient_confidence ?? null : null,
+        model_source: snapshotIsCurrent ? snapshot?.source_label ?? null : null,
+        model_disagrees_with_field_observation: stageDisagreement,
+      },
+      field_observation: authoritativeObservation ? {
+        id: authoritativeObservation.id,
+        observed_on: authoritativeObservation.observed_on,
+        stage: authoritativeObservation.stage,
+        canonical_stage: true,
+        authoritative_for_kcb: true,
+        model_stage_match: automaticStage === null ? null : !stageDisagreement,
+      } : {
+        observed_on: today,
+        authoritative_for_kcb: false,
+        observation_count: observations.length,
+        distinct_canonical_stages: distinctObservedStages,
+        has_invalid_stage: hasInvalidObservation,
+        has_conflicting_stages: hasConflictingObservations,
+      },
       source: profile ? {
         label: profile.kcb_source_label,
         url: profile.kcb_source_url,
         reference_version: profile.reference_version,
       } : null,
       missing_inputs: [...new Set(missingInputs)],
-      validation_rule: 'FAO-56 basal Kcb reference + same-day canonical field growth observation matching the current phenology snapshot.',
+      warnings,
+      validation_rule: 'FAO-56 basal Kcb reference + one unambiguous same-day canonical field growth observation. The field observation is authoritative even when the automatic phenology estimate disagrees.',
       caution: validated
-        ? 'Kcb girdisi saha gözlemiyle doğrulandı; model yine shadow rollout seviyesindedir ve production sulama otoritesi değildir.'
-        : 'Otomatik/orta güvenli fenoloji tek başına basal Kcb doğrulaması sayılmaz.',
+        ? 'Kcb girdisi aynı gün saha gözlemiyle doğrulandı. Otomatik fenoloji farklıysa çelişki uyarı olarak korunur; saha gözlemi ezilmez. Model yine shadow rollout seviyesindedir ve production sulama otoritesi değildir.'
+        : 'Saha gözlemi yoksa otomatik fenoloji yalnız shadow Kcb adayı üretir; çelişkili veya geçersiz saha gözlemi varsa Kcb doğrulanmaz.',
       generated_at: new Date().toISOString(),
     });
   } catch (error) {
