@@ -234,6 +234,13 @@ Deno.serve(async (req: Request) => {
       : automaticStage
         ? 'model_snapshot'
         : null;
+    const effectiveStageLabel = observedStage
+      ? automaticStage === observedStage && snapshot?.stage_label
+        ? snapshot.stage_label
+        : authoritativeObservation?.stage ?? observedStage
+      : snapshotIsCurrent
+        ? snapshot?.stage_label ?? automaticStage
+        : null;
     const stageResolution = resolveStage(effectiveStage);
     const kcb = interpolateKcb(profile, stageResolution);
     const stageDisagreement = Boolean(
@@ -286,12 +293,22 @@ Deno.serve(async (req: Request) => {
         end: Number(profile.kcb_end),
       } : null,
       phenology: {
+        // Backward-compatible fields retained for existing consumers.
+        stage: effectiveStage,
+        stage_label: effectiveStageLabel,
+        source: stageSource === 'field_observation'
+          ? 'field_growth_observations'
+          : snapshotIsCurrent
+            ? snapshot?.source_label ?? null
+            : null,
+        snapshot_date: snapshotIsCurrent ? snapshot?.snapshot_date ?? null : null,
+        coefficient_confidence: snapshotIsCurrent ? snapshot?.coefficient_confidence ?? null : null,
+
+        // Explicit provenance for newer consumers.
         effective_stage: effectiveStage,
         stage_source: stageSource,
         model_stage: automaticStage,
         model_stage_label: snapshotIsCurrent ? snapshot?.stage_label ?? null : null,
-        snapshot_date: snapshotIsCurrent ? snapshot?.snapshot_date ?? null : null,
-        coefficient_confidence: snapshotIsCurrent ? snapshot?.coefficient_confidence ?? null : null,
         model_source: snapshotIsCurrent ? snapshot?.source_label ?? null : null,
         model_disagrees_with_field_observation: stageDisagreement,
       },
