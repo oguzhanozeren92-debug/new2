@@ -36,7 +36,7 @@ export default function SeasonModelInputs({ field, seasons, seasonsLoading }: Pr
     Math.floor((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${season.plantingDate}T00:00:00Z`)) / 86400000) + 1 : 0;
   const canCheck = Boolean(!seasonsLoading && season?.plantingDate && seasonDays > 0 && seasonDays <= 731 &&
     latitude != null && longitude != null && Number.isFinite(latitude) && Number.isFinite(longitude));
-  const irrigationStatus = String((field as any).irrigationStatus ?? '').trim();
+  const irrigationStatus = field.irrigationStatus ?? null;
 
   useEffect(() => {
     if (!seasons.some((item) => item.id === selected)) setSelected(seasons[0]?.id ?? '');
