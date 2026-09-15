@@ -2,6 +2,10 @@ import {
   supabase,
 } from '../../../supabaseClient';
 
+import {
+  refreshPyFao56ReadinessBestEffort,
+} from '../../../services/modelReadiness.service';
+
 import type {
   CreateFieldGrowthObservationInput,
   FieldGrowthObservation,
@@ -120,6 +124,7 @@ export async function recordFieldGrowthObservation(
     throw error;
   }
 
+  refreshPyFao56ReadinessBestEffort(validated.fieldId);
   return mapRow(data);
 }
 
@@ -152,10 +157,25 @@ export async function deleteFieldGrowthObservation(
   const id = String(observationId ?? '').trim();
   if (!id) throw new Error('Silinecek gelişim gözlemi kimliği gerekli.');
 
+  const {
+    data: existing,
+    error: existingError,
+  } = await supabase
+    .from('field_growth_observations')
+    .select('field_id')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
   const { error } = await supabase
     .from('field_growth_observations')
     .delete()
     .eq('id', id);
 
   if (error) throw error;
+
+  if (existing?.field_id) {
+    refreshPyFao56ReadinessBestEffort(String(existing.field_id));
+  }
 }
