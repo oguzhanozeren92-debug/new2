@@ -15,6 +15,12 @@ import {
 } from '../../fields/services/fieldCompletion.service';
 
 import {
+  loadFieldIrrigationMethod,
+  saveFieldIrrigationMethod,
+  type FieldIrrigationMethod,
+} from '../../fields/services/irrigationMethod.service';
+
+import {
   CANOPY_DEVELOPMENT_OPTIONS,
   CANOPY_HEIGHT_OPTIONS,
   estimateCanopyDevelopmentFromAge,
@@ -30,11 +36,13 @@ export type PusulaFieldQuestionOption = {
 
 export type PusulaFieldAnswer =
   | FieldIrrigationStatusValue
+  | FieldIrrigationMethod
   | string
   | number;
 
 export type PusulaFieldQuestionTarget =
   | 'irrigation-status'
+  | 'irrigation-method'
   | 'canopy-development'
   | 'canopy-height'
   | null;
@@ -73,6 +81,14 @@ type ContextState = {
   error: string | null;
 };
 
+type IrrigationMethodState = {
+  fieldId: string;
+  checked: boolean;
+  loading: boolean;
+  value: FieldIrrigationMethod | null;
+  error: string | null;
+};
+
 const EMPTY_CONTEXT_STATE: ContextState = {
   fieldId: '',
   checked: false,
@@ -80,6 +96,25 @@ const EMPTY_CONTEXT_STATE: ContextState = {
   data: null,
   error: null,
 };
+
+const EMPTY_IRRIGATION_METHOD_STATE: IrrigationMethodState = {
+  fieldId: '',
+  checked: false,
+  loading: false,
+  value: null,
+  error: null,
+};
+
+const IRRIGATION_METHODS = new Set<FieldIrrigationMethod>([
+  'sprinkler',
+  'basin',
+  'border',
+  'furrow_every_narrow',
+  'furrow_every_wide',
+  'furrow_alternating',
+  'trickle',
+  'unknown',
+]);
 
 function textOrNull(value: unknown) {
   const text = String(value ?? '').trim();
@@ -95,6 +130,8 @@ export function usePusulaFieldCompletion({
   const [reloadKey, setReloadKey] = useState(0);
   const [contextState, setContextState] =
     useState<ContextState>(EMPTY_CONTEXT_STATE);
+  const [irrigationMethodState, setIrrigationMethodState] =
+    useState<IrrigationMethodState>(EMPTY_IRRIGATION_METHOD_STATE);
 
   const rawField = useMemo(() => {
     if (!fieldId || !Array.isArray(fields)) return null;
@@ -164,6 +201,61 @@ export function usePusulaFieldCompletion({
   }, [fieldId, field?.demo, reloadKey]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    if (!fieldId || field?.demo) {
+      setIrrigationMethodState({
+        fieldId,
+        checked: true,
+        loading: false,
+        value: null,
+        error: null,
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setIrrigationMethodState({
+      fieldId,
+      checked: false,
+      loading: true,
+      value: null,
+      error: null,
+    });
+
+    void loadFieldIrrigationMethod(fieldId)
+      .then((value) => {
+        if (cancelled) return;
+        setIrrigationMethodState({
+          fieldId,
+          checked: true,
+          loading: false,
+          value,
+          error: null,
+        });
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setIrrigationMethodState({
+          fieldId,
+          checked: true,
+          loading: false,
+          value: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Sulama yöntemi kontrol edilemedi.',
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fieldId, field?.demo, reloadKey]);
+
+  useEffect(() => {
     if (
       typeof window === 'undefined' ||
       !fieldId
@@ -192,6 +284,7 @@ export function usePusulaFieldCompletion({
         changedFields.some((name: string) =>
           [
             'irrigation_status',
+            'irrigation_method',
             'canopy_development_class',
             'canopy_height_class',
             'canopy_cover_percent',
@@ -225,6 +318,11 @@ export function usePusulaFieldCompletion({
       ? contextState.data
       : null;
 
+  const irrigationMethod =
+    irrigationMethodState.fieldId === fieldId
+      ? irrigationMethodState.value
+      : null;
+
   const fieldName =
     textOrNull(field?.name) ??
     textOrNull(rawField?.name) ??
@@ -252,7 +350,10 @@ export function usePusulaFieldCompletion({
         contextState.fieldId !== fieldId ||
         !contextState.checked ||
         contextState.loading ||
-        !context
+        !context ||
+        irrigationMethodState.fieldId !== fieldId ||
+        !irrigationMethodState.checked ||
+        irrigationMethodState.loading
       ) {
         return null;
       }
@@ -269,6 +370,28 @@ export function usePusulaFieldCompletion({
           { value: 'kısmi', label: 'Kısmi / İhtiyaca göre' },
         ],
       });
+
+      const irrigationMethodQuestion = (): PusulaFieldQuestion => ({
+        id: `field:${fieldId}:irrigation-method`,
+        kind: 'choice',
+        prompt: `${fieldName} için hangi sulama yöntemi kullanılıyor?`,
+        helper:
+          'Yalnız yöntemi seç. Islanan yüzey oranını tek sayı uydurmak yerine FAO-56 referans aralığıyla modelleyeceğim.',
+        options: [
+          { value: 'trickle', label: 'Damlama' },
+          { value: 'sprinkler', label: 'Yağmurlama' },
+          { value: 'basin', label: 'Tava / göllendirme' },
+          { value: 'border', label: 'Şerit / salma' },
+          { value: 'furrow_every_narrow', label: 'Karık · her karık, dar yatak' },
+          { value: 'furrow_every_wide', label: 'Karık · her karık, geniş yatak' },
+          { value: 'furrow_alternating', label: 'Karık · dönüşümlü karık' },
+          { value: 'unknown', label: 'Bilmiyorum / emin değilim' },
+        ],
+      });
+
+      const needsIrrigationMethod =
+        context.irrigationStatus === 'irrigated' ||
+        context.irrigationStatus === 'partial';
 
       const needsYoungOrchardCanopy =
         context.bearing === false &&
@@ -314,13 +437,15 @@ export function usePusulaFieldCompletion({
           })),
         });
 
-      /*
-       * Görevlerim ekranından belirli bir göreve girildiyse
-       * normal soru sırasını atla ve yalnız o görevin gerçek girişini aç.
-       */
       if (preferredQuestion === 'irrigation-status') {
         return !context.irrigationStatus
           ? irrigationQuestion()
+          : null;
+      }
+
+      if (preferredQuestion === 'irrigation-method') {
+        return needsIrrigationMethod && irrigationMethod === null
+          ? irrigationMethodQuestion()
           : null;
       }
 
@@ -344,9 +469,12 @@ export function usePusulaFieldCompletion({
           : null;
       }
 
-      /* Normal Pusula akışı: en önemli eksik bilgiyi sırayla sor. */
       if (!context.irrigationStatus) {
         return irrigationQuestion();
+      }
+
+      if (needsIrrigationMethod && irrigationMethod === null) {
+        return irrigationMethodQuestion();
       }
 
       if (!needsYoungOrchardCanopy) {
@@ -376,6 +504,10 @@ export function usePusulaFieldCompletion({
       contextState.fieldId,
       contextState.checked,
       contextState.loading,
+      irrigationMethod,
+      irrigationMethodState.fieldId,
+      irrigationMethodState.checked,
+      irrigationMethodState.loading,
       ageSuggestion,
       preferredQuestion,
     ]);
@@ -408,6 +540,26 @@ export function usePusulaFieldCompletion({
             fieldId,
             irrigationStatus: value,
           });
+          return;
+        }
+
+        if (question.id.endsWith(':irrigation-method')) {
+          if (typeof value !== 'string' || !IRRIGATION_METHODS.has(value as FieldIrrigationMethod)) {
+            throw new Error('Geçerli bir sulama yöntemi seç.');
+          }
+
+          await saveFieldIrrigationMethod({
+            fieldId,
+            irrigationMethod: value as FieldIrrigationMethod,
+          });
+          setIrrigationMethodState((current) => ({
+            ...current,
+            fieldId,
+            checked: true,
+            loading: false,
+            value: value as FieldIrrigationMethod,
+            error: null,
+          }));
           return;
         }
 
@@ -471,15 +623,18 @@ export function usePusulaFieldCompletion({
     answerQuestion,
     irrigationStatus:
       context?.irrigationStatus ?? null,
+    irrigationMethod,
     fieldCompletionContext:
       context,
     ageSuggestion,
     checking:
-      contextState.fieldId === fieldId &&
-      contextState.loading,
+      (contextState.fieldId === fieldId && contextState.loading) ||
+      (irrigationMethodState.fieldId === fieldId && irrigationMethodState.loading),
     checkError:
-      contextState.fieldId === fieldId
+      contextState.fieldId === fieldId && contextState.error
         ? contextState.error
-        : null,
+        : irrigationMethodState.fieldId === fieldId
+          ? irrigationMethodState.error
+          : null,
   };
 }
