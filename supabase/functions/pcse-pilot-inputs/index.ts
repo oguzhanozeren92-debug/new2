@@ -7,10 +7,11 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const REQUIRED = ['daily_weather', 'crop_parameters', 'soil_parameters', 'site_parameters', 'agromanagement'] as const;
-const ARCHIVE_LAG_DAYS = 5;
+const REQUIRED = ['field_location', 'daily_weather', 'crop_parameters', 'planting_date'] as const;
+const ARCHIVE_LAG_DAYS = 6;
 const WEATHER_VALIDATION_DAYS = 7;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_DURATION_DAYS = 365;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -126,7 +127,7 @@ function deriveCropParameters(season: any, cropReference: any, varietyMapping: a
   };
 }
 
-function deriveAgromanagement(season: any, cropReference: any, varietyMapping: any) {
+function derivePlantingAndAgromanagement(season: any, cropReference: any, varietyMapping: any) {
   const plantingDate = String(season?.planting_date ?? '').trim();
   const harvestDate = String(season?.harvest_date ?? '').trim();
   const crop = String(season?.crop ?? '').trim();
@@ -136,57 +137,39 @@ function deriveAgromanagement(season: any, cropReference: any, varietyMapping: a
       available: false,
       source: 'field_seasons',
       sourceReference: season?.id ? `field_seasons:${season.id}` : null,
+      plantingDate: null,
       parameters: null,
-      detail: 'PCSE agromanagement için gerçek sezon, ürün ve ekim tarihi gerekli.',
+      detail: 'PCSE fenoloji pilotu için gerçek sezon, ürün ve ekim/dikim tarihi gerekli.',
     };
   }
 
   const cropName = String(cropReference?.wofost_crop_key ?? crop);
   const varietyName = varietyMapping?.wofost_variety_key ? String(varietyMapping.wofost_variety_key) : null;
-  const baseCalendar = {
-    local_crop_name: crop,
-    local_variety_name: String(season?.variety_name ?? '').trim() || null,
-    crop_name: cropName,
-    variety_name: varietyName,
-    crop_start_date: plantingDate,
-    crop_start_type: 'sowing',
-    crop_end_date: validIsoDate(harvestDate) ? harvestDate : null,
-    crop_end_type: 'harvest',
-  };
-
-  if (!validIsoDate(harvestDate)) {
-    return {
-      available: false,
-      source: 'field_seasons',
-      sourceReference: `field_seasons:${season.id}`,
-      parameters: {
-        campaign_start_date: plantingDate,
-        crop_calendar: baseCalendar,
-      },
-      detail: 'Ekim tarihi var; gerçek/planlanan hasat tarihi olmadığı için agromanagement tamamlanmış sayılmıyor.',
-    };
-  }
-
-  if (Date.parse(`${harvestDate}T00:00:00Z`) < Date.parse(`${plantingDate}T00:00:00Z`)) {
-    return {
-      available: false,
-      source: 'field_seasons',
-      sourceReference: `field_seasons:${season.id}`,
-      parameters: null,
-      detail: 'Hasat tarihi ekim tarihinden önce olamaz.',
-    };
-  }
+  const hasHarvest = validIsoDate(harvestDate) && Date.parse(`${harvestDate}T00:00:00Z`) >= Date.parse(`${plantingDate}T00:00:00Z`);
 
   return {
     available: true,
     source: 'field_seasons',
     sourceReference: `field_seasons:${season.id}`,
-    verifiedAt: season.created_at ?? null,
+    verifiedAt: season.updated_at ?? season.created_at ?? null,
+    plantingDate,
     parameters: {
       campaign_start_date: plantingDate,
-      crop_calendar: baseCalendar,
+      crop_calendar: {
+        local_crop_name: crop,
+        local_variety_name: String(season?.variety_name ?? '').trim() || null,
+        crop_name: cropName,
+        variety_name: varietyName,
+        crop_start_date: plantingDate,
+        crop_start_type: 'sowing',
+        crop_end_date: hasHarvest ? harvestDate : null,
+        crop_end_type: hasHarvest ? 'harvest' : 'maturity',
+        max_duration: MAX_DURATION_DAYS,
+      },
     },
-    detail: 'Agromanagement gerçek TarlaPusula sezon kaydındaki ekim ve hasat tarihinden üretildi.',
+    detail: hasHarvest
+      ? 'Fenoloji takvimi gerçek ekim ve hasat tarihlerinden üretildi.'
+      : 'Fenoloji takvimi gerçek ekim tarihinden üretildi; hasat tarihi olmadığı için model maturity sonlandırması kullanacak.',
   };
 }
 
@@ -220,28 +203,44 @@ async function validateDailyWeather(location: { latitude: number; longitude: num
   url.searchParams.set('longitude', String(location.longitude));
   url.searchParams.set('start_date', start);
   url.searchParams.set('end_date', end);
-  url.searchParams.set('daily', 'temperature_2m_min,temperature_2m_max,precipitation_sum,et0_fao_evapotranspiration');
+  url.searchParams.set('daily', 'temperature_2m_min,temperature_2m_max,precipitation_sum,shortwave_radiation_sum');
+  url.searchParams.set('hourly', 'temperature_2m,wind_speed_10m,dewpoint_2m');
   url.searchParams.set('timezone', 'UTC');
+  url.searchParams.set('models', 'era5_land');
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
   try {
-    const response = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'TarlaPusula-PCSE-Pilot/1.0' } });
+    const response = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'TarlaPusula-PCSE-Phenology/2.0' } });
     const payload = await response.json().catch(() => null);
-    if (!response.ok || !payload?.daily) return { available: false, source: 'Open-Meteo Archive', days: 0, detail: `Weather HTTP ${response.status}` };
+    if (!response.ok || !payload?.daily || !payload?.hourly) {
+      return { available: false, source: 'Open-Meteo ERA5-Land', days: 0, detail: `Weather HTTP ${response.status}` };
+    }
     const d = payload.daily;
     const dates = Array.isArray(d.time) ? d.time : [];
     const tmin = Array.isArray(d.temperature_2m_min) ? d.temperature_2m_min : [];
     const tmax = Array.isArray(d.temperature_2m_max) ? d.temperature_2m_max : [];
     const rain = Array.isArray(d.precipitation_sum) ? d.precipitation_sum : [];
-    const et0 = Array.isArray(d.et0_fao_evapotranspiration) ? d.et0_fao_evapotranspiration : [];
-    const valid = dates.length === WEATHER_VALIDATION_DAYS && [tmin, tmax, rain, et0].every((a) => a.length === dates.length) && dates.every((_: string, i: number) => {
-      const lo = Number(tmin[i]); const hi = Number(tmax[i]); const p = Number(rain[i]); const e = Number(et0[i]);
-      return Number.isFinite(lo) && Number.isFinite(hi) && hi >= lo && Number.isFinite(p) && p >= 0 && Number.isFinite(e) && e >= 0;
+    const radiation = Array.isArray(d.shortwave_radiation_sum) ? d.shortwave_radiation_sum : [];
+    const valid = dates.length === WEATHER_VALIDATION_DAYS && [tmin, tmax, rain, radiation].every((a) => a.length === dates.length) && dates.every((_: string, i: number) => {
+      const lo = Number(tmin[i]); const hi = Number(tmax[i]); const p = Number(rain[i]); const r = Number(radiation[i]);
+      return Number.isFinite(lo) && Number.isFinite(hi) && hi >= lo && Number.isFinite(p) && p >= 0 && Number.isFinite(r) && r >= 0;
     });
-    return { available: valid, source: 'Open-Meteo Archive', days: valid ? dates.length : 0, start, end, detail: valid ? 'Gerçek günlük hava serisi server tarafında doğrulandı.' : 'Günlük hava serisi eksik veya geçersiz.' };
+    return {
+      available: valid,
+      source: 'Open-Meteo ERA5-Land',
+      provider: 'PCSE OpenMeteoWeatherDataProvider compatible contract',
+      archiveLagDays: ARCHIVE_LAG_DAYS,
+      days: valid ? dates.length : 0,
+      start,
+      end,
+      detail: valid ? 'PCSE için gerekli günlük/saatlik hava kaynakları server tarafında doğrulandı.' : 'PCSE hava serisi eksik veya geçersiz.',
+    };
   } catch (error) {
-    return { available: false, source: 'Open-Meteo Archive', days: 0, detail: error instanceof Error ? error.message : 'Weather validation failed' };
-  } finally { clearTimeout(timeout); }
+    return { available: false, source: 'Open-Meteo ERA5-Land', days: 0, detail: error instanceof Error ? error.message : 'Weather validation failed' };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -262,20 +261,18 @@ Deno.serve(async (req) => {
     if (fieldError) throw fieldError;
     if (!field) return json({ ok: false, error: 'Tarla bulunamadı veya bu kullanıcıya ait değil.' }, 404);
 
-    const [seasonResult, paramsResult, cropRefsResult, varietyMappingsResult, weather] = await Promise.all([
-      serviceClient
-        .from('field_seasons')
-        .select('id,year,crop,variety_name,planting_date,harvest_date,created_at')
-        .eq('user_id', user.id)
-        .eq('field_id', fieldId)
-        .order('year', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      serviceClient
-        .from('field_pcse_parameter_sets')
-        .select('id,parameter_kind,parameters,source,source_reference,verified_at,updated_at')
-        .eq('user_id', user.id)
-        .eq('field_id', fieldId),
+    let seasonQuery = serviceClient
+      .from('field_seasons')
+      .select('id,year,crop,variety_name,planting_date,harvest_date,created_at,updated_at')
+      .eq('user_id', user.id)
+      .eq('field_id', fieldId)
+      .order('year', { ascending: false })
+      .limit(1);
+    if (Number.isInteger(Number(field.season))) seasonQuery = seasonQuery.eq('year', Number(field.season));
+
+    const location = resolveLocation(field as Record<string, unknown>);
+    const [seasonResult, cropRefsResult, varietyMappingsResult, weather] = await Promise.all([
+      seasonQuery.maybeSingle(),
       serviceClient
         .from('pcse_crop_reference_mappings')
         .select('crop_name,crop_aliases,wofost_crop_key,model_family,model_version,source_label,source_url,verified'),
@@ -283,10 +280,10 @@ Deno.serve(async (req) => {
         .from('pcse_variety_mappings')
         .select('crop_name,local_variety_name,normalized_local_variety_name,wofost_crop_key,wofost_variety_key,model_family,model_version,source_label,source_url,verified,created_at,updated_at')
         .eq('verified', true),
-      validateDailyWeather(resolveLocation(field as Record<string, unknown>)),
+      validateDailyWeather(location),
     ]);
 
-    for (const result of [seasonResult, paramsResult, cropRefsResult, varietyMappingsResult]) {
+    for (const result of [seasonResult, cropRefsResult, varietyMappingsResult]) {
       if (result.error) throw result.error;
     }
 
@@ -301,65 +298,46 @@ Deno.serve(async (req) => {
         )
       : null;
 
-    const records = Array.isArray(paramsResult.data) ? paramsResult.data : [];
-    const byKind = new Map(records.map((row: any) => [String(row.parameter_kind), row]));
+    const cropParameters = deriveCropParameters(season, cropReference, varietyMapping);
+    const planting = derivePlantingAndAgromanagement(season, cropReference, varietyMapping);
+    const fieldLocation = location
+      ? { available: true, source: 'fields', latitude: location.latitude, longitude: location.longitude, detail: 'Tarla koordinatı server-side field kaydından çözüldü.' }
+      : { available: false, source: 'fields', latitude: null, longitude: null, detail: 'Tarla koordinatı eksik.' };
+
     const availableInputs: string[] = [];
+    if (fieldLocation.available) availableInputs.push('field_location');
     if (weather.available) availableInputs.push('daily_weather');
-
-    const adapters: Record<string, unknown> = { daily_weather: weather };
-    const derivedCropParameters = deriveCropParameters(season, cropReference, varietyMapping);
-    const derivedAgromanagement = deriveAgromanagement(season, cropReference, varietyMapping);
-
-    for (const kind of ['crop_parameters', 'soil_parameters', 'site_parameters', 'agromanagement']) {
-      const row = byKind.get(kind) as any;
-      const validObject = row?.parameters && typeof row.parameters === 'object' && !Array.isArray(row.parameters) && Object.keys(row.parameters).length > 0;
-
-      if (validObject) {
-        availableInputs.push(kind);
-        adapters[kind] = {
-          available: true,
-          source: row.source,
-          sourceReference: row.source_reference ?? null,
-          verifiedAt: row.verified_at,
-          parameters: row.parameters,
-        };
-        continue;
-      }
-
-      if (kind === 'crop_parameters') {
-        if (derivedCropParameters.available) availableInputs.push('crop_parameters');
-        adapters.crop_parameters = derivedCropParameters;
-        continue;
-      }
-
-      if (kind === 'agromanagement') {
-        if (derivedAgromanagement.available) availableInputs.push('agromanagement');
-        adapters.agromanagement = derivedAgromanagement;
-        continue;
-      }
-
-      adapters[kind] = {
-        available: false,
-        source: null,
-        parameters: null,
-        detail: `${kind} için doğrulanmış gerçek PCSE parametre kaydı yok.`,
-      };
-    }
+    if (cropParameters.available) availableInputs.push('crop_parameters');
+    if (planting.available) availableInputs.push('planting_date');
 
     const missingInputs = REQUIRED.filter((key) => !availableInputs.includes(key));
     return json({
       ok: true,
       engine: 'pcse',
-      mode: 'pilot-input-adapter',
+      mode: 'phenology-pilot-input-adapter',
       field_id: fieldId,
       rollout: 'pilot',
       production_authority: false,
+      water_stress_authority: false,
       input_authority: 'server-derived',
       client_supplied_agricultural_values_accepted: false,
       ready: missingInputs.length === 0,
       available_inputs: availableInputs,
       missing_inputs: missingInputs,
-      adapters,
+      adapters: {
+        field_location: fieldLocation,
+        daily_weather: weather,
+        crop_parameters: cropParameters,
+        planting_date: planting,
+        agromanagement: planting,
+        soil_provider: {
+          available: true,
+          source: 'PCSE DummySoilDataProvider',
+          field_measurement: false,
+          structural_only: true,
+          detail: 'Wofost72_PP potential-production modu için PCSE’nin resmi nötr soil providerı; saha toprağı iddiası taşımaz.',
+        },
+      },
       context: {
         season_id: season?.id ?? null,
         crop_identity: cropIdentity,
@@ -369,10 +347,12 @@ Deno.serve(async (req) => {
         planting_date: season?.planting_date ?? null,
         harvest_date: season?.harvest_date ?? null,
         season_year: season?.year ?? field.season ?? null,
+        weather_archive_lag_days: ARCHIVE_LAG_DAYS,
+        model: 'Wofost72_PP',
       },
       note: missingInputs.length === 0
-        ? 'PCSE/WOFOST pilot girdileri doğrulanmış server-side kaynaklarla hazır.'
-        : 'Eksik PCSE/WOFOST girdileri için sentetik veya varsayılan variety üretilmedi; pilot bloklu kalır.',
+        ? 'PCSE/WOFOST fenoloji pilot girdileri doğrulanmış server-side kaynaklarla hazır.'
+        : 'Eksik fenoloji girdileri için sentetik ürün/çeşit/tarih üretilmedi; pilot bloklu kalır.',
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'PCSE pilot input hazırlığı başarısız oldu.';
