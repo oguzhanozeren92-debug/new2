@@ -76,6 +76,24 @@ function emitTasksChanged(fieldId: string) {
   );
 }
 
+export function syncIrrigationEvidenceTasksBestEffort(fieldIdInput: string) {
+  const fieldId = text(fieldIdInput);
+  if (!fieldId || !supabase) return;
+
+  void supabase
+    .rpc('tp_sync_irrigation_evidence_tasks', { p_field_id: fieldId })
+    .then(({ error }) => {
+      if (error) {
+        console.warn('[tasks] Sulama kanıtı görevleri senkronize edilemedi:', error.message);
+        return;
+      }
+      emitTasksChanged(fieldId);
+    })
+    .catch((error: unknown) => {
+      console.warn('[tasks] Sulama kanıtı görevleri senkronize edilemedi:', error);
+    });
+}
+
 async function synchronizeGeneratedTasks(fieldId: string) {
   if (!supabase) {
     throw new Error('Supabase bağlantısı hazır değil.');
