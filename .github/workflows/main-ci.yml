@@ -62,12 +62,15 @@ jobs:
           from aquacrop_runner import AquaCropPilotRequest, run_aquacrop_pilot
           from engine_registry import ENGINE_REGISTRY
           from pcse_runner import PCSEPhenologyPilotRequest, run_pcse_phenology_pilot
+          from pyfao56_dual_runner import PyFao56DualKcShadowRequest, run_pyfao56_dual_kc_shadow
 
           assert app is not None
           assert AquaCropPilotRequest is not None
           assert run_aquacrop_pilot is not None
           assert PCSEPhenologyPilotRequest is not None
           assert run_pcse_phenology_pilot is not None
+          assert PyFao56DualKcShadowRequest is not None
+          assert run_pyfao56_dual_kc_shadow is not None
           assert ENGINE_REGISTRY['pyfao56']['package'] == 'pyfao56==1.4.3'
           assert ENGINE_REGISTRY['pcse']['package'] == 'pcse==6.0.13'
           assert ENGINE_REGISTRY['pcse']['pilot_model'] == 'Wofost72_PP'
@@ -90,3 +93,7 @@ jobs:
           print('pcse:', getattr(pcse, '__version__', 'imported'))
           print('aquacrop:', getattr(aquacrop, '__version__', 'imported'))
           PY
+      - name: Dual-Kc pyfao56 smoke
+        env:
+          PYTHONPATH: services/model-gateway
+        run: python services/model-gateway/dual_smoke_test.py
