@@ -73,6 +73,29 @@ function isFresh(
   return Date.now() - checkedAt <= maxAgeMs;
 }
 
+async function syncModelReadinessTasks(fieldId: string) {
+  const field = normalizedId(fieldId);
+  if (!field) return;
+
+  const { error } = await supabase.rpc(
+    'tp_sync_model_readiness_tasks',
+    {
+      p_field_id: field,
+    },
+  );
+
+  if (error) throw error;
+}
+
+function syncModelReadinessTasksBestEffort(fieldId: string) {
+  void syncModelReadinessTasks(fieldId).catch((error) => {
+    console.warn(
+      '[model-readiness] Pusula task sync failed',
+      error,
+    );
+  });
+}
+
 export async function getModelReadinessSnapshot(
   fieldId: string,
   engine: ModelEngine,
@@ -140,6 +163,8 @@ export async function refreshModelReadiness(
           ),
         );
       }
+
+      syncModelReadinessTasksBestEffort(field);
 
       return {
         ok: true,
