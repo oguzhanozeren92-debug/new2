@@ -119,13 +119,20 @@ function normalizeStandardAdapter(engine: 'pcse' | 'aquacrop', payload: any) {
   };
 }
 
-function normalizePyFao56(payload: any, irrigationBalance: any) {
+function normalizePyFao56(
+  payload: any,
+  irrigationBalance: any,
+  kcbContext: any,
+  evaporationContext: any,
+) {
   const required = [...ENGINE_CONFIG.pyfao56.required] as string[];
   const availableInputs: string[] = [];
 
-  if (payload?.basal_kcb?.status === 'validated') {
-    availableInputs.push('validated_basal_kcb');
-  }
+  const validatedKcb =
+    kcbContext?.validated === true &&
+    kcbContext?.status === 'validated' &&
+    presentFinite(kcbContext?.kcb);
+  if (validatedKcb) availableInputs.push('validated_basal_kcb');
 
   const measuredCurrentState =
     presentFinite(payload?.root_zone?.current_water_vol) &&
@@ -141,20 +148,35 @@ function normalizePyFao56(payload: any, irrigationBalance: any) {
     availableInputs.push('current_soil_water_state');
   }
 
-  if (
+  const directRew = payload?.surface_evaporation?.rew_mm;
+  const validatedContextRew = evaporationContext?.validated_rew_mm;
+  const rew = presentFinite(directRew)
+    ? directRew
+    : presentFinite(validatedContextRew)
+      ? validatedContextRew
+      : null;
+
+  const surfaceLayerReady =
     presentFinite(payload?.surface_evaporation?.tew_mm) &&
     presentFinite(payload?.surface_evaporation?.de_mm) &&
-    presentFinite(payload?.surface_evaporation?.rew_mm)
-  ) {
-    availableInputs.push('surface_evaporation_layer');
-  }
+    presentFinite(rew);
+
+  if (surfaceLayerReady) availableInputs.push('surface_evaporation_layer');
 
   const missingInputs = required.filter((key) => !availableInputs.includes(key));
+  const adapterMissingInputs = [
+    ...(Array.isArray(payload?.missing_inputs) ? payload.missing_inputs.map(String) : []),
+    ...(Array.isArray(irrigationBalance?.missing_inputs) ? irrigationBalance.missing_inputs.map(String) : []),
+    ...(Array.isArray(kcbContext?.missing_inputs) ? kcbContext.missing_inputs.map(String) : []),
+    ...(Array.isArray(evaporationContext?.missing_inputs) ? evaporationContext.missing_inputs.map(String) : []),
+  ];
+
   return {
     availableInputs,
     missingInputs,
     evidence: {
-      basal_kcb: payload?.basal_kcb ?? null,
+      basal_kcb: kcbContext ?? payload?.basal_kcb ?? null,
+      legacy_basal_kcb_candidate: payload?.basal_kcb ?? null,
       root_zone_measurement: payload?.root_zone ?? null,
       root_zone_water_balance: irrigationBalance ?? null,
       current_soil_water_state_source: measuredCurrentState
@@ -163,20 +185,20 @@ function normalizePyFao56(payload: any, irrigationBalance: any) {
           ? 'irrigation-water-balance-state'
           : null,
       surface_evaporation: payload?.surface_evaporation ?? null,
+      soil_evaporation_reference: evaporationContext ?? null,
       soil_profile: payload?.soil_profile ?? null,
     },
     context: {
       field: payload?.field ?? irrigationBalance?.field ?? null,
-      adapter_full_water_balance_ready: Boolean(payload?.full_water_balance_ready),
-      estimated_water_balance_ready: Boolean(estimatedCurrentState),
+      validated_kcb_ready: validatedKcb,
+      estimated_water_balance_ready: estimatedCurrentState,
       estimated_water_balance_confidence: estimatedCurrentState
         ? irrigationBalance?.confidence ?? null
         : null,
+      evaporation_reference_ready: evaporationContext?.ready === true,
+      surface_evaporation_layer_ready: surfaceLayerReady,
     },
-    adapterMissingInputs: [
-      ...(Array.isArray(payload?.missing_inputs) ? payload.missing_inputs.map(String) : []),
-      ...(Array.isArray(irrigationBalance?.missing_inputs) ? irrigationBalance.missing_inputs.map(String) : []),
-    ],
+    adapterMissingInputs: [...new Set(adapterMissingInputs)],
   };
 }
 
@@ -221,24 +243,40 @@ Deno.serve(async (req: Request) => {
 
     let adapterPayload: any;
     let irrigationBalance: any = null;
+    let kcbContext: any = null;
+    let evaporationContext: any = null;
 
     if (engine === 'pyfao56') {
-      const [pyfaoResult, balanceResult] = await Promise.allSettled([
+      const [pyfaoResult, balanceResult, kcbResult, evaporationResult] = await Promise.allSettled([
         callAdapter(supabaseUrl, anonKey, authorization, config.adapter, fieldId),
         callAdapter(supabaseUrl, anonKey, authorization, 'irrigation-water-balance-state', fieldId),
+        callAdapter(supabaseUrl, anonKey, authorization, 'pyfao56-kcb-context', fieldId),
+        callAdapter(supabaseUrl, anonKey, authorization, 'soil-evaporation-context', fieldId),
       ]);
 
       if (pyfaoResult.status === 'rejected') throw pyfaoResult.reason;
       adapterPayload = pyfaoResult.value;
+
       irrigationBalance = balanceResult.status === 'fulfilled'
         ? balanceResult.value
         : {
-            ok: true,
             ready: false,
             status: 'unavailable',
-            production_authority: false,
-            input_authority: 'server-derived',
             missing_inputs: ['irrigation_water_balance_unavailable'],
+          };
+      kcbContext = kcbResult.status === 'fulfilled'
+        ? kcbResult.value
+        : {
+            validated: false,
+            status: 'unavailable',
+            missing_inputs: ['kcb_context_unavailable'],
+          };
+      evaporationContext = evaporationResult.status === 'fulfilled'
+        ? evaporationResult.value
+        : {
+            ready: false,
+            status: 'unavailable',
+            missing_inputs: ['soil_evaporation_context_unavailable'],
           };
     } else {
       adapterPayload = await callAdapter(
@@ -251,7 +289,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const normalized = engine === 'pyfao56'
-      ? normalizePyFao56(adapterPayload, irrigationBalance)
+      ? normalizePyFao56(adapterPayload, irrigationBalance, kcbContext, evaporationContext)
       : normalizeStandardAdapter(engine, adapterPayload);
 
     const ready = normalized.missingInputs.length === 0;
