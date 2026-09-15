@@ -10,6 +10,7 @@ const corsHeaders = {
 const OPEN_METEO_FORECAST = 'https://api.open-meteo.com/v1/forecast';
 const MAX_BALANCE_LOOKBACK_DAYS = 92;
 const EFFECTIVE_RAIN_FACTOR = 0.80;
+const FIELD_TIME_ZONE = 'Europe/Istanbul';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -39,6 +40,17 @@ function clamp(value: number, min: number, max: number) {
 
 function normalizeText(value: unknown) {
   return String(value ?? '').trim().toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ');
+}
+
+function fieldDate(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: FIELD_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
 }
 
 function normalizeSubtype(value: unknown): 'table' | 'wine' | null {
@@ -177,7 +189,7 @@ async function fetchWeather(latitude: number, longitude: number, pastDays: numbe
     latitude: latitude.toFixed(5),
     longitude: longitude.toFixed(5),
     daily: 'et0_fao_evapotranspiration,precipitation_sum',
-    timezone: 'UTC',
+    timezone: FIELD_TIME_ZONE,
     past_days: String(Math.max(1, Math.min(MAX_BALANCE_LOOKBACK_DAYS, pastDays))),
     forecast_days: '5',
   });
@@ -255,6 +267,7 @@ Deno.serve(async (req: Request) => {
         field_id: fieldId,
         status: 'not_applicable',
         irrigation_status: irrigationStatus,
+        field_time_zone: FIELD_TIME_ZONE,
         production_authority: false,
         input_authority: 'server-derived',
         ready: false,
@@ -280,7 +293,7 @@ Deno.serve(async (req: Request) => {
     if (!lastIrrigationDate) missing.push('last_irrigation');
     if (lastIrrigationDate && irrigationAmount.appliedWaterMm === null) missing.push('last_irrigation_amount');
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = fieldDate();
     const lookbackDays = lastIrrigationDate ? daysBetween(lastIrrigationDate, today) : null;
     if (lookbackDays !== null && lookbackDays > MAX_BALANCE_LOOKBACK_DAYS) missing.push('recent_water_baseline');
 
@@ -290,6 +303,8 @@ Deno.serve(async (req: Request) => {
         field_id: fieldId,
         status: 'blocked',
         irrigation_status: irrigationStatus,
+        field_time_zone: FIELD_TIME_ZONE,
+        evidence_date: today,
         production_authority: false,
         input_authority: 'server-derived',
         ready: false,
@@ -313,6 +328,8 @@ Deno.serve(async (req: Request) => {
         field_id: fieldId,
         status: 'blocked',
         irrigation_status: irrigationStatus,
+        field_time_zone: FIELD_TIME_ZONE,
+        evidence_date: today,
         production_authority: false,
         input_authority: 'server-derived',
         ready: false,
@@ -361,6 +378,8 @@ Deno.serve(async (req: Request) => {
       field_id: fieldId,
       status: 'estimated',
       irrigation_status: irrigationStatus,
+      field_time_zone: FIELD_TIME_ZONE,
+      evidence_date: today,
       production_authority: false,
       input_authority: 'server-derived',
       ready: true,
