@@ -6,6 +6,10 @@ import {
   refreshModelReadinessBestEffort,
 } from '../../../services/modelReadiness.service';
 
+import {
+  runDualKcShadowEvidenceBestEffort,
+} from './dualKcShadow.service';
+
 import type {
   CreateSoilWaterMeasurementInput,
   SoilWaterMeasurement,
@@ -82,6 +86,7 @@ function validateInput(input: CreateSoilWaterMeasurementInput) {
 function refreshWaterModels(fieldId: string) {
   refreshModelReadinessBestEffort(fieldId, 'pyfao56');
   refreshModelReadinessBestEffort(fieldId, 'aquacrop');
+  runDualKcShadowEvidenceBestEffort(fieldId);
 }
 
 export async function recordSoilWaterMeasurement(
