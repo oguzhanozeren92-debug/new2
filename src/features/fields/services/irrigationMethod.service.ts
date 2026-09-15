@@ -1,4 +1,5 @@
 import { supabase } from '../../../supabaseClient';
+import { runDualKcShadowEvidenceBestEffort } from '../../irrigation/services/dualKcShadow.service';
 
 export type FieldIrrigationMethod =
   | 'sprinkler'
@@ -95,6 +96,8 @@ export async function saveFieldIrrigationMethod(input: {
   if (!savedMethod) throw new Error('Sulama yöntemi kaydedildi ancak doğrulanamadı.');
 
   emitUpdated(fieldId, savedMethod);
+  runDualKcShadowEvidenceBestEffort(fieldId);
+
   return {
     fieldId: String(data.id),
     irrigationMethod: savedMethod,
