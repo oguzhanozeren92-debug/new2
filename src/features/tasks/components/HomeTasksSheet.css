@@ -77,9 +77,11 @@
 .tp-home-task-topline em { background: #111; border-color: #111; color: #fff; }
 .tp-home-task-card h3 { margin: 9px 0 0; color: #171717; font: 900 13px/1.2 system-ui,sans-serif; }
 .tp-home-task-card p { margin: 6px 0 0; color: #666; font: 750 9px/1.45 system-ui,sans-serif; }
-.tp-home-task-actions { margin-top: 11px; display: flex; justify-content: flex-end; }
+.tp-home-task-actions { margin-top: 11px; display: flex; justify-content: flex-end; align-items: center; gap: 7px; flex-wrap: wrap; }
 .tp-home-task-open,
-.tp-home-task-complete { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 10px; border: 1px solid #d9d9d9; border-radius: 10px; background: #fff; color: #222; font: 850 8px/1 system-ui,sans-serif; cursor: pointer; }
+.tp-home-task-complete,
+.tp-home-task-later { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 10px; border: 1px solid #d9d9d9; border-radius: 10px; background: #fff; color: #222; font: 850 8px/1 system-ui,sans-serif; cursor: pointer; }
+.tp-home-task-later { color: #666; background: #fafafa; }
 
 .tp-home-tasks-message,
 .tp-home-tasks-error { margin: 0 0 10px; padding: 9px 11px; border-radius: 11px; font: 800 8px/1.4 system-ui,sans-serif; }
@@ -97,7 +99,6 @@
   .tp-home-tasks-sheet { width: 100%; max-height: 84dvh; padding-left: 12px; padding-right: 12px; }
   .tp-home-tasks-intro { align-items: flex-start; }
 }
-
 
 .tp-home-task-photo-hint {
   margin-top: 9px;
