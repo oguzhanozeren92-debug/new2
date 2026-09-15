@@ -10,7 +10,6 @@ const env = import.meta.env;
   .env yoksa TarlaPusula'nın kendi publishable
   Supabase bilgilerine fallback yapar.
 */
-
 const DEFAULT_SUPABASE_URL =
   'https://xwyfidtktauxivsosmex.supabase.co';
 
@@ -44,11 +43,15 @@ export const supabaseConfigError = !supabaseUrl
     ? 'Supabase publishable key bulunamadı.'
     : '';
 
-let client: SupabaseClient | null = null;
+function createTarlaPusulaSupabaseClient(): SupabaseClient {
+  if (!isSupabaseConfigured) {
+    throw new Error(
+      `TarlaPusula Supabase ayarları eksik: ${supabaseConfigError || 'bilinmeyen yapılandırma hatası'}`,
+    );
+  }
 
-if (isSupabaseConfigured) {
   try {
-    client = createClient(
+    const client = createClient(
       supabaseUrl,
       supabaseKey,
       {
@@ -65,17 +68,21 @@ if (isSupabaseConfigured) {
       'TarlaPusula Supabase bağlantısı hazır:',
       supabaseUrl,
     );
+
+    return client;
   } catch (error) {
     console.error(
       'Supabase istemcisi oluşturulamadı:',
       error,
     );
+
+    throw error;
   }
-} else {
-  console.error(
-    'TarlaPusula Supabase ayarları eksik:',
-    supabaseConfigError,
-  );
 }
 
-export const supabase: SupabaseClient | null = client;
+/*
+  Uygulamanın tamamı tek, geçerli Supabase istemcisi kullanır.
+  Yapılandırma bozuksa null istemciyi uygulama boyunca taşımak yerine
+  başlangıçta fail-fast davranırız.
+*/
+export const supabase: SupabaseClient = createTarlaPusulaSupabaseClient();
