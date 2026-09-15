@@ -79,7 +79,7 @@ export default function SeasonModelInputs({ field, seasons, seasonsLoading }: Pr
         <p>Bu gelişim modeli kontrolü tek yıllık ürünler için hazırlandı. {field.cropCycle === 'perennial' || catalogueCycle === 'perennial' ? `${field.crop} çok yıllık ürün olduğu için` : `${field.crop} tek yıllık ürün olarak doğrulanmadığı için`} bu tarlada geçmiş hava sorgusu ve PCSE denemesi açılmıyor.</p>
       </div>
     </details></section>
-    {(field.cropCycle === 'perennial' || catalogueCycle === 'perennial') && (
+    {field.cropCycle === 'perennial' && (
       <FieldGrowthObservations
         fieldId={String(field.id)}
         seasons={seasons}
