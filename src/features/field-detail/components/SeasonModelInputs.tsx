@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { TURKEY_CROPS } from '../../../data/crops';
+import {
+  ensurePyFao56ReadinessFreshBestEffort,
+} from '../../../services/modelReadiness.service';
 import type { Field, FieldSeason } from '../../../types';
 import FieldWaterMeasurements from '../../irrigation/components/FieldWaterMeasurements';
 import { checkSeasonWeather, hasFieldSoilReport, type SeasonWeatherCoverage } from '../services/seasonModelInputs.service';
@@ -35,10 +38,16 @@ export default function SeasonModelInputs({ field, seasons, seasonsLoading }: Pr
   useEffect(() => {
     if (!seasons.some((item) => item.id === selected)) setSelected(seasons[0]?.id ?? '');
   }, [seasons, selected]);
+
   useEffect(() => {
     requestVersion.current += 1;
     setCoverage(null); setMessage(''); setLoading(false);
   }, [field.id, selected]);
+
+  useEffect(() => {
+    ensurePyFao56ReadinessFreshBestEffort(String(field.id), 24);
+  }, [field.id]);
+
   useEffect(() => {
     let active = true;
     setReport(null);
