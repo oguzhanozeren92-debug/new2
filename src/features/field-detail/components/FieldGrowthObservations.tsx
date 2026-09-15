@@ -14,7 +14,7 @@ import './FieldGrowthObservations.css';
 type Props = {
   fieldId: string;
   seasons: FieldSeason[];
-  cropCycle: 'annual' | 'perennial';
+  cropCycle?: 'annual' | 'perennial';
 };
 
 type CanonicalStage = Exclude<PhenologyStage, 'unknown'>;
@@ -48,7 +48,11 @@ function todayLocal() {
   return new Date().toLocaleDateString('en-CA');
 }
 
-export default function FieldGrowthObservations({ fieldId, seasons, cropCycle }: Props) {
+export default function FieldGrowthObservations({
+  fieldId,
+  seasons,
+  cropCycle = 'annual',
+}: Props) {
   const perennial = cropCycle === 'perennial';
   const [items, setItems] = useState<FieldGrowthObservation[]>([]);
   const [seasonId, setSeasonId] = useState('');
