@@ -58,7 +58,8 @@ export default function DualKcShadowStatus({ fieldId, irrigationStatus }: Props)
   const [audit, setAudit] = useState<DualKcShadowAudit | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const rainfed = String(irrigationStatus ?? '').toLowerCase() === 'rainfed';
+  const fieldSaysRainfed = String(irrigationStatus ?? '').toLowerCase() === 'rainfed';
+  const rainfed = audit ? audit.notApplicable : fieldSaysRainfed;
 
   const reload = async (reEvaluate = false) => {
     const id = String(fieldId ?? '').trim();
@@ -66,7 +67,7 @@ export default function DualKcShadowStatus({ fieldId, irrigationStatus }: Props)
     setLoading(true);
     setError('');
     try {
-      if (reEvaluate && !rainfed) {
+      if (reEvaluate) {
         await runDualKcShadowEvidence(id);
       }
       const latest = await loadLatestDualKcShadowAudit(id);
@@ -78,7 +79,7 @@ export default function DualKcShadowStatus({ fieldId, irrigationStatus }: Props)
     }
   };
 
-  useEffect(() => { void reload(true); }, [fieldId, rainfed]);
+  useEffect(() => { void reload(true); }, [fieldId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
