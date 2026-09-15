@@ -48,7 +48,7 @@ jobs:
           python -m pip install -r services/model-gateway/requirements.txt
       - name: Compile model gateway Python
         run: python -m compileall -q services/model-gateway
-      - name: Import model engines
+      - name: Import model engines and verify deploy routes
         env:
           PYTHONPATH: services/model-gateway
         run: |
@@ -60,11 +60,29 @@ jobs:
           import pyfao56
           from app import app
           from aquacrop_runner import AquaCropPilotRequest, run_aquacrop_pilot
+          from dual_app import app as compatibility_app
           from engine_registry import ENGINE_REGISTRY
           from pcse_runner import PCSEPhenologyPilotRequest, run_pcse_phenology_pilot
           from pyfao56_dual_runner import PyFao56DualKcShadowRequest, run_pyfao56_dual_kc_shadow
 
           assert app is not None
+          assert compatibility_app is app
+          assert app.version == '0.5.0'
+
+          route_paths = {route.path for route in app.routes}
+          required_routes = {
+              '/health',
+              '/v1/registry',
+              '/v1/irrigation/pyfao56/shadow',
+              '/v1/irrigation/pyfao56/dual-kc-shadow',
+              '/v1/phenology/pcse/readiness',
+              '/v1/phenology/pcse/pilot',
+              '/v1/scenario/aquacrop/readiness',
+              '/v1/scenario/aquacrop/pilot',
+          }
+          missing_routes = required_routes - route_paths
+          assert not missing_routes, f'Missing deploy routes: {sorted(missing_routes)}'
+
           assert AquaCropPilotRequest is not None
           assert run_aquacrop_pilot is not None
           assert PCSEPhenologyPilotRequest is not None
@@ -89,6 +107,8 @@ jobs:
           assert request.crop_key == 'wheat'
           assert request.max_duration_days == 365
 
+          print('gateway-version:', app.version)
+          print('gateway-routes:', sorted(required_routes))
           print('pyfao56:', getattr(pyfao56, '__version__', 'imported'))
           print('pcse:', getattr(pcse, '__version__', 'imported'))
           print('aquacrop:', getattr(aquacrop, '__version__', 'imported'))
