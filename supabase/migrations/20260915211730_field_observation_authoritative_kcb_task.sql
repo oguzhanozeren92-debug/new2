@@ -2,6 +2,7 @@
 -- The automatic phenology/Kc snapshot remains useful context, but the user does
 -- not have to agree with the model. One unambiguous canonical observation for
 -- today closes the evidence task. Conflicting same-day stages keep it open.
+-- TarlaPusula currently operates on Turkey field dates, not UTC calendar dates.
 
 create or replace function public.tp_sync_growth_stage_observation_task(p_field_id uuid)
 returns setof public.field_todos
@@ -14,7 +15,7 @@ declare
   v_field public.fields%rowtype;
   v_crop text := '';
   v_has_kcb_reference boolean := false;
-  v_today date := ((now() at time zone 'UTC')::date);
+  v_today date := ((now() at time zone 'Europe/Istanbul')::date);
   v_snapshot_date date;
   v_stage text;
   v_stage_label text;
@@ -153,6 +154,7 @@ begin
         'rewardPoints', 0,
         'engines', jsonb_build_array('pyfao56'),
         'observationDate', v_today,
+        'fieldTimeZone', 'Europe/Istanbul',
         'modelSnapshotDate', case when v_snapshot_date = v_today then v_snapshot_date else null end,
         'modelExpectedStage', case when v_snapshot_date = v_today then nullif(v_stage, '') else null end,
         'stageLabel', case when v_snapshot_date = v_today then coalesce(nullif(trim(v_stage_label), ''), nullif(v_stage, '')) else null end,
@@ -184,7 +186,8 @@ begin
         metadata = coalesce(metadata, '{}'::jsonb)
           || jsonb_build_object(
             'closedReason', 'same_day_growth_observation',
-            'fieldObservationAuthoritative', true
+            'fieldObservationAuthoritative', true,
+            'fieldTimeZone', 'Europe/Istanbul'
           )
     where user_id = v_user
       and field_id = p_field_id
