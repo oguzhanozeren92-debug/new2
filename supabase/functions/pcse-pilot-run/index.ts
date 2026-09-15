@@ -9,6 +9,7 @@ const corsHeaders = {
 
 const ARCHIVE_LAG_DAYS = 6;
 const MAX_DURATION_DAYS = 365;
+const RUNNER_VERSION = 3;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -96,6 +97,46 @@ async function persistRun(serviceClient: any, values: Record<string, unknown>) {
   if (error) console.error('[pcse-pilot-run] run persistence failed', error.message);
 }
 
+async function loadCachedCompletedRun(
+  serviceClient: any,
+  userId: string,
+  fieldId: string,
+  fingerprint: string,
+) {
+  const { data, error } = await serviceClient
+    .from('model_engine_runs')
+    .select('output,engine_version,completed_at')
+    .eq('user_id', userId)
+    .eq('field_id', fieldId)
+    .eq('engine', 'pcse')
+    .eq('mode', 'pilot')
+    .eq('status', 'completed')
+    .eq('input_fingerprint', fingerprint)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[pcse-pilot-run] cached run lookup failed', error.message);
+    return null;
+  }
+
+  const output = data?.output;
+  if (
+    !output ||
+    output.engine !== 'pcse' ||
+    output.mode !== 'phenology_pilot' ||
+    output.production_authority !== false ||
+    output.water_stress_authority !== false
+  ) {
+    return null;
+  }
+
+  return {
+    result: output,
+    engineVersion: data?.engine_version ?? output.engine_version ?? null,
+    completedAt: data?.completed_at ?? null,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ ok: false, error: 'Yalnız POST desteklenir.' }, 405);
@@ -148,7 +189,13 @@ Deno.serve(async (req) => {
       : null;
 
     if (missing.size) {
-      const fingerprint = await sha256({ fieldId, missing: Array.from(missing).sort(), adapter: 2, asOfDate });
+      const fingerprint = await sha256({
+        fieldId,
+        missing: Array.from(missing).sort(),
+        inputAdapterVersion: 4,
+        runnerVersion: RUNNER_VERSION,
+        asOfDate,
+      });
       await persistRun(serviceClient, {
         user_id: user.id,
         field_id: fieldId,
@@ -162,9 +209,13 @@ Deno.serve(async (req) => {
           server_derived: true,
           phenology_only: true,
         },
-        source_versions: { pcse_input_adapter: 2, model: 'Wofost72_PP' },
+        source_versions: {
+          pcse_input_adapter: 4,
+          pcse_pilot_runner: RUNNER_VERSION,
+          model: 'Wofost72_PP',
+        },
         missing_inputs: Array.from(missing).sort(),
-        adapter_version: 2,
+        adapter_version: RUNNER_VERSION,
         output: null,
         error_message: null,
         completed_at: new Date().toISOString(),
@@ -172,6 +223,7 @@ Deno.serve(async (req) => {
       return json({
         ok: true,
         blocked: true,
+        cached: false,
         engine: 'pcse',
         mode: 'pilot',
         field_id: fieldId,
@@ -193,7 +245,34 @@ Deno.serve(async (req) => {
       harvest_date: harvestDate,
       max_duration_days: MAX_DURATION_DAYS,
     };
-    const fingerprint = await sha256(modelPayload);
+    const fingerprint = await sha256({
+      modelPayload,
+      inputAdapterVersion: 4,
+      runnerVersion: RUNNER_VERSION,
+      model: 'Wofost72_PP',
+    });
+
+    const cached = await loadCachedCompletedRun(
+      serviceClient,
+      user.id,
+      fieldId,
+      fingerprint,
+    );
+    if (cached) {
+      return json({
+        ok: true,
+        blocked: false,
+        cached: true,
+        engine: 'pcse',
+        mode: 'pilot',
+        field_id: fieldId,
+        production_authority: false,
+        water_stress_authority: false,
+        missing_inputs: [],
+        completed_at: cached.completedAt,
+        result: cached.result,
+      });
+    }
 
     await persistRun(serviceClient, {
       user_id: user.id,
@@ -214,10 +293,12 @@ Deno.serve(async (req) => {
       source_versions: {
         weather: 'Open-Meteo ERA5-Land via PCSE',
         crop_parameters: inputs?.adapters?.crop_parameters?.sourceReference ?? null,
+        pcse_input_adapter: 4,
+        pcse_pilot_runner: RUNNER_VERSION,
         model: 'Wofost72_PP',
       },
       missing_inputs: [],
-      adapter_version: 2,
+      adapter_version: RUNNER_VERSION,
       output: null,
       error_message: null,
       started_at: new Date().toISOString(),
@@ -252,9 +333,14 @@ Deno.serve(async (req) => {
         status: 'failed',
         input_fingerprint: fingerprint,
         input_summary: { planting_date: plantingDate, as_of_date: asOfDate, server_derived: true, phenology_only: true },
-        source_versions: { weather: 'Open-Meteo ERA5-Land via PCSE', model: 'Wofost72_PP' },
+        source_versions: {
+          weather: 'Open-Meteo ERA5-Land via PCSE',
+          pcse_input_adapter: 4,
+          pcse_pilot_runner: RUNNER_VERSION,
+          model: 'Wofost72_PP',
+        },
         missing_inputs: [],
-        adapter_version: 2,
+        adapter_version: RUNNER_VERSION,
         output: null,
         error_message: errorMessage.slice(0, 2000),
         completed_at: new Date().toISOString(),
@@ -289,11 +375,13 @@ Deno.serve(async (req) => {
       source_versions: {
         weather: 'Open-Meteo ERA5-Land via PCSE',
         crop_parameters: inputs?.adapters?.crop_parameters?.sourceReference ?? null,
+        pcse_input_adapter: 4,
+        pcse_pilot_runner: RUNNER_VERSION,
         model: 'Wofost72_PP',
       },
       missing_inputs: [],
       engine_version: result.engine_version ?? null,
-      adapter_version: 2,
+      adapter_version: RUNNER_VERSION,
       output: result,
       error_message: null,
       completed_at: new Date().toISOString(),
@@ -302,11 +390,13 @@ Deno.serve(async (req) => {
     return json({
       ok: true,
       blocked: false,
+      cached: false,
       engine: 'pcse',
       mode: 'pilot',
       field_id: fieldId,
       production_authority: false,
       water_stress_authority: false,
+      missing_inputs: [],
       result,
     });
   } catch (error) {
