@@ -16,7 +16,7 @@ const ENGINE_CONFIG = {
   pcse: {
     adapter: 'pcse-pilot-inputs',
     rollout: 'pilot',
-    required: ['daily_weather', 'crop_parameters', 'soil_parameters', 'site_parameters', 'agromanagement'],
+    required: ['field_location', 'daily_weather', 'crop_parameters', 'planting_date'],
   },
   aquacrop: {
     adapter: 'aquacrop-pilot-inputs',
