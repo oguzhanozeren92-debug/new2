@@ -26,6 +26,17 @@ export type DualKcShadowEvidence = {
   error: string | null;
 };
 
+export type DualKcShadowAudit = {
+  fieldId: string;
+  status: 'running' | 'completed' | 'blocked' | 'failed' | 'queued';
+  missingInputs: string[];
+  scenarios: DualKcShadowScenario[];
+  engineVersion: string | null;
+  completedAt: string | null;
+  productionAuthority: false;
+  error: string | null;
+};
+
 const inFlight = new Map<string, Promise<DualKcShadowEvidence>>();
 
 function finiteOrNull(value: unknown) {
@@ -63,6 +74,72 @@ function emptyEvidence(fieldId: string, error: string): DualKcShadowEvidence {
     engineVersion: null,
     completedAt: null,
     error,
+  };
+}
+
+function isDualKcAuditRow(row: any) {
+  return (
+    row?.output?.shadow_scope === 'dual_kc_water_balance_bounded_rew' ||
+    row?.source_versions?.pyfao56_dual_shadow_runner != null ||
+    row?.input_summary?.dual_kc === true
+  );
+}
+
+export async function loadLatestDualKcShadowAudit(
+  fieldId: string,
+): Promise<DualKcShadowAudit | null> {
+  const field = String(fieldId ?? '').trim();
+  if (!field) return null;
+
+  const { data, error } = await supabase
+    .from('model_engine_runs')
+    .select(
+      'field_id,status,missing_inputs,output,engine_version,error_message,completed_at,created_at,input_summary,source_versions',
+    )
+    .eq('field_id', field)
+    .eq('engine', 'pyfao56')
+    .eq('mode', 'shadow')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) throw error;
+
+  const row = (Array.isArray(data) ? data : []).find(isDualKcAuditRow);
+  if (!row) return null;
+
+  const output = row.output ?? null;
+  const scenarios = Array.isArray(output?.scenarios)
+    ? output.scenarios.map(normalizeScenario)
+    : [];
+  const rawStatus = String(row.status ?? 'blocked');
+  const status: DualKcShadowAudit['status'] =
+    rawStatus === 'running' ||
+    rawStatus === 'completed' ||
+    rawStatus === 'failed' ||
+    rawStatus === 'queued'
+      ? rawStatus
+      : 'blocked';
+
+  return {
+    fieldId: String(row.field_id ?? field),
+    status,
+    missingInputs: stringArray(row.missing_inputs),
+    scenarios,
+    engineVersion:
+      row.engine_version == null
+        ? output?.engine_version == null
+          ? null
+          : String(output.engine_version)
+        : String(row.engine_version),
+    completedAt:
+      row.completed_at == null
+        ? null
+        : String(row.completed_at),
+    productionAuthority: false,
+    error:
+      row.error_message == null
+        ? null
+        : String(row.error_message),
   };
 }
 
@@ -141,19 +218,27 @@ export function runDualKcShadowEvidenceBestEffort(fieldId: string) {
 }
 
 export function summarizeDualKcShadowRange(
-  evidence: DualKcShadowEvidence | null | undefined,
+  evidence: Pick<DualKcShadowEvidence, 'ok' | 'blocked' | 'scenarios'> | DualKcShadowAudit | null | undefined,
 ) {
-  if (!evidence?.ok || evidence.blocked || evidence.scenarios.length === 0) {
+  const blocked = 'blocked' in (evidence ?? {})
+    ? Boolean((evidence as DualKcShadowEvidence | null)?.blocked)
+    : (evidence as DualKcShadowAudit | null)?.status !== 'completed';
+  const ok = 'ok' in (evidence ?? {})
+    ? Boolean((evidence as DualKcShadowEvidence | null)?.ok)
+    : Boolean(evidence);
+  const scenarios = evidence?.scenarios ?? [];
+
+  if (!ok || blocked || scenarios.length === 0) {
     return null;
   }
 
-  const rootValues = evidence.scenarios
+  const rootValues = scenarios
     .map((scenario) => scenario.finalState.rootDepletionMm)
     .filter((value): value is number => value !== null);
-  const surfaceValues = evidence.scenarios
+  const surfaceValues = scenarios
     .map((scenario) => scenario.finalState.surfaceDepletionMm)
     .filter((value): value is number => value !== null);
-  const stressValues = evidence.scenarios
+  const stressValues = scenarios
     .map((scenario) => scenario.finalState.stressCoefficient)
     .filter((value): value is number => value !== null);
 
@@ -166,7 +251,7 @@ export function summarizeDualKcShadowRange(
     rootDepletionMm: range(rootValues),
     surfaceDepletionMm: range(surfaceValues),
     stressCoefficient: range(stressValues),
-    scenarioCount: evidence.scenarios.length,
+    scenarioCount: scenarios.length,
     productionAuthority: false as const,
   };
 }
