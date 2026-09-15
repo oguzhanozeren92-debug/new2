@@ -25,6 +25,13 @@ function finite(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeText(value: unknown) {
+  return String(value ?? '')
+    .trim()
+    .toLocaleLowerCase('tr-TR')
+    .replace(/\s+/g, ' ');
+}
+
 function isoDateDaysAgo(days: number) {
   return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 }
@@ -42,7 +49,84 @@ function resolveLocation(field: Record<string, unknown>) {
   return { latitude, longitude };
 }
 
-function deriveAgromanagement(season: any) {
+function resolveCropReference(rows: any[], crop: unknown) {
+  const normalizedCrop = normalizeText(crop);
+  if (!normalizedCrop) return null;
+  return rows.find((row) => {
+    if (!row?.verified) return false;
+    if (normalizeText(row.crop_name) === normalizedCrop) return true;
+    return Array.isArray(row.crop_aliases) && row.crop_aliases.some((alias: unknown) => normalizeText(alias) === normalizedCrop);
+  }) ?? null;
+}
+
+function resolveVerifiedVarietyMapping(rows: any[], cropName: string, localVariety: unknown) {
+  const normalizedVariety = normalizeText(localVariety);
+  if (!normalizedVariety) return null;
+  return rows.find((row) =>
+    row?.verified === true &&
+    String(row.crop_name ?? '') === cropName &&
+    normalizeText(row.normalized_local_variety_name) === normalizedVariety
+  ) ?? null;
+}
+
+function deriveCropParameters(season: any, cropReference: any, varietyMapping: any) {
+  const localVarietyName = String(season?.variety_name ?? '').trim();
+  if (!cropReference) {
+    return {
+      available: false,
+      source: null,
+      parameters: null,
+      detail: 'Bu ürün için doğrulanmış WOFOST 7.2 ürün eşlemesi yok.',
+    };
+  }
+  if (!localVarietyName) {
+    return {
+      available: false,
+      source: cropReference.source_label,
+      sourceReference: cropReference.source_url,
+      parameters: {
+        wofost_crop_key: cropReference.wofost_crop_key,
+        local_variety_name: null,
+        wofost_variety_key: null,
+        model_family: cropReference.model_family,
+        model_version: cropReference.model_version,
+      },
+      detail: 'Çiftçinin gerçek çeşit adı henüz kayıtlı değil; WOFOST variety seçimi yapılmadı.',
+    };
+  }
+  if (!varietyMapping) {
+    return {
+      available: false,
+      source: cropReference.source_label,
+      sourceReference: cropReference.source_url,
+      parameters: {
+        wofost_crop_key: cropReference.wofost_crop_key,
+        local_variety_name: localVarietyName,
+        wofost_variety_key: null,
+        model_family: cropReference.model_family,
+        model_version: cropReference.model_version,
+      },
+      detail: 'Gerçek çeşit adı kayıtlı; fakat bu çeşit için doğrulanmış WOFOST variety eşlemesi henüz yok.',
+    };
+  }
+  return {
+    available: true,
+    source: 'pcse_upstream',
+    sourceReference: varietyMapping.source_url,
+    verifiedAt: varietyMapping.updated_at ?? varietyMapping.created_at ?? null,
+    parameters: {
+      wofost_crop_key: varietyMapping.wofost_crop_key,
+      wofost_variety_key: varietyMapping.wofost_variety_key,
+      local_variety_name: localVarietyName,
+      model_family: varietyMapping.model_family,
+      model_version: varietyMapping.model_version,
+      provider: 'PCSE YAMLCropDataProvider',
+    },
+    detail: 'Ürün ve model variety anahtarı doğrulanmış eşleme kaydından çözüldü; varsayılan variety seçilmedi.',
+  };
+}
+
+function deriveAgromanagement(season: any, cropReference: any, varietyMapping: any) {
   const plantingDate = String(season?.planting_date ?? '').trim();
   const harvestDate = String(season?.harvest_date ?? '').trim();
   const crop = String(season?.crop ?? '').trim();
@@ -57,6 +141,19 @@ function deriveAgromanagement(season: any) {
     };
   }
 
+  const cropName = String(cropReference?.wofost_crop_key ?? crop);
+  const varietyName = varietyMapping?.wofost_variety_key ? String(varietyMapping.wofost_variety_key) : null;
+  const baseCalendar = {
+    local_crop_name: crop,
+    local_variety_name: String(season?.variety_name ?? '').trim() || null,
+    crop_name: cropName,
+    variety_name: varietyName,
+    crop_start_date: plantingDate,
+    crop_start_type: 'sowing',
+    crop_end_date: validIsoDate(harvestDate) ? harvestDate : null,
+    crop_end_type: 'harvest',
+  };
+
   if (!validIsoDate(harvestDate)) {
     return {
       available: false,
@@ -64,13 +161,7 @@ function deriveAgromanagement(season: any) {
       sourceReference: `field_seasons:${season.id}`,
       parameters: {
         campaign_start_date: plantingDate,
-        crop_calendar: {
-          crop_name: crop,
-          crop_start_date: plantingDate,
-          crop_start_type: 'sowing',
-          crop_end_date: null,
-          crop_end_type: 'harvest',
-        },
+        crop_calendar: baseCalendar,
       },
       detail: 'Ekim tarihi var; gerçek/planlanan hasat tarihi olmadığı için agromanagement tamamlanmış sayılmıyor.',
     };
@@ -93,13 +184,7 @@ function deriveAgromanagement(season: any) {
     verifiedAt: season.created_at ?? null,
     parameters: {
       campaign_start_date: plantingDate,
-      crop_calendar: {
-        crop_name: crop,
-        crop_start_date: plantingDate,
-        crop_start_type: 'sowing',
-        crop_end_date: harvestDate,
-        crop_end_type: 'harvest',
-      },
+      crop_calendar: baseCalendar,
     },
     detail: 'Agromanagement gerçek TarlaPusula sezon kaydındaki ekim ve hasat tarihinden üretildi.',
   };
@@ -167,16 +252,54 @@ Deno.serve(async (req) => {
     const fieldId = String(body?.field_id ?? '').trim();
     if (!fieldId) return json({ ok: false, error: 'field_id gerekli.' }, 400);
     const { user, serviceClient } = await authenticatedClients(req);
-    const { data: field, error: fieldError } = await serviceClient.from('fields').select('id,user_id,crop,season,latitude,longitude,parcel_centroid_lat,parcel_centroid_lng').eq('id', fieldId).eq('user_id', user.id).maybeSingle();
+
+    const { data: field, error: fieldError } = await serviceClient
+      .from('fields')
+      .select('id,user_id,crop,season,latitude,longitude,parcel_centroid_lat,parcel_centroid_lng')
+      .eq('id', fieldId)
+      .eq('user_id', user.id)
+      .maybeSingle();
     if (fieldError) throw fieldError;
     if (!field) return json({ ok: false, error: 'Tarla bulunamadı veya bu kullanıcıya ait değil.' }, 404);
-    const [seasonResult, paramsResult, weather] = await Promise.all([
-      serviceClient.from('field_seasons').select('id,year,crop,planting_date,harvest_date,created_at').eq('user_id', user.id).eq('field_id', fieldId).order('year', { ascending: false }).limit(1).maybeSingle(),
-      serviceClient.from('field_pcse_parameter_sets').select('id,parameter_kind,parameters,source,source_reference,verified_at,updated_at').eq('user_id', user.id).eq('field_id', fieldId),
+
+    const [seasonResult, paramsResult, cropRefsResult, varietyMappingsResult, weather] = await Promise.all([
+      serviceClient
+        .from('field_seasons')
+        .select('id,year,crop,variety_name,planting_date,harvest_date,created_at')
+        .eq('user_id', user.id)
+        .eq('field_id', fieldId)
+        .order('year', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      serviceClient
+        .from('field_pcse_parameter_sets')
+        .select('id,parameter_kind,parameters,source,source_reference,verified_at,updated_at')
+        .eq('user_id', user.id)
+        .eq('field_id', fieldId),
+      serviceClient
+        .from('pcse_crop_reference_mappings')
+        .select('crop_name,crop_aliases,wofost_crop_key,model_family,model_version,source_label,source_url,verified'),
+      serviceClient
+        .from('pcse_variety_mappings')
+        .select('crop_name,local_variety_name,normalized_local_variety_name,wofost_crop_key,wofost_variety_key,model_family,model_version,source_label,source_url,verified,created_at,updated_at')
+        .eq('verified', true),
       validateDailyWeather(resolveLocation(field as Record<string, unknown>)),
     ]);
-    if (seasonResult.error) throw seasonResult.error;
-    if (paramsResult.error) throw paramsResult.error;
+
+    for (const result of [seasonResult, paramsResult, cropRefsResult, varietyMappingsResult]) {
+      if (result.error) throw result.error;
+    }
+
+    const season = seasonResult.data;
+    const cropIdentity = season?.crop ?? field.crop ?? null;
+    const cropReference = resolveCropReference(Array.isArray(cropRefsResult.data) ? cropRefsResult.data : [], cropIdentity);
+    const varietyMapping = cropReference
+      ? resolveVerifiedVarietyMapping(
+          Array.isArray(varietyMappingsResult.data) ? varietyMappingsResult.data : [],
+          String(cropReference.crop_name),
+          season?.variety_name,
+        )
+      : null;
 
     const records = Array.isArray(paramsResult.data) ? paramsResult.data : [];
     const byKind = new Map(records.map((row: any) => [String(row.parameter_kind), row]));
@@ -184,7 +307,8 @@ Deno.serve(async (req) => {
     if (weather.available) availableInputs.push('daily_weather');
 
     const adapters: Record<string, unknown> = { daily_weather: weather };
-    const derivedAgromanagement = deriveAgromanagement(seasonResult.data);
+    const derivedCropParameters = deriveCropParameters(season, cropReference, varietyMapping);
+    const derivedAgromanagement = deriveAgromanagement(season, cropReference, varietyMapping);
 
     for (const kind of ['crop_parameters', 'soil_parameters', 'site_parameters', 'agromanagement']) {
       const row = byKind.get(kind) as any;
@@ -199,6 +323,12 @@ Deno.serve(async (req) => {
           verifiedAt: row.verified_at,
           parameters: row.parameters,
         };
+        continue;
+      }
+
+      if (kind === 'crop_parameters') {
+        if (derivedCropParameters.available) availableInputs.push('crop_parameters');
+        adapters.crop_parameters = derivedCropParameters;
         continue;
       }
 
@@ -231,15 +361,18 @@ Deno.serve(async (req) => {
       missing_inputs: missingInputs,
       adapters,
       context: {
-        season_id: seasonResult.data?.id ?? null,
-        crop_identity: seasonResult.data?.crop ?? field.crop ?? null,
-        planting_date: seasonResult.data?.planting_date ?? null,
-        harvest_date: seasonResult.data?.harvest_date ?? null,
-        season_year: seasonResult.data?.year ?? field.season ?? null,
+        season_id: season?.id ?? null,
+        crop_identity: cropIdentity,
+        farmer_variety_name: season?.variety_name ?? null,
+        wofost_crop_key: cropReference?.wofost_crop_key ?? null,
+        wofost_variety_key: varietyMapping?.wofost_variety_key ?? null,
+        planting_date: season?.planting_date ?? null,
+        harvest_date: season?.harvest_date ?? null,
+        season_year: season?.year ?? field.season ?? null,
       },
       note: missingInputs.length === 0
         ? 'PCSE/WOFOST pilot girdileri doğrulanmış server-side kaynaklarla hazır.'
-        : 'Eksik PCSE/WOFOST girdileri için sentetik değer üretilmedi; pilot bloklu kalır.',
+        : 'Eksik PCSE/WOFOST girdileri için sentetik veya varsayılan variety üretilmedi; pilot bloklu kalır.',
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'PCSE pilot input hazırlığı başarısız oldu.';
