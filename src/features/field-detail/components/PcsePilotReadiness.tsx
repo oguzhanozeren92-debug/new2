@@ -1,4 +1,9 @@
+import { useEffect } from 'react';
+
 import { TURKEY_CROPS } from '../../../data/crops';
+import {
+  ensureModelReadinessFreshBestEffort,
+} from '../../../services/modelReadiness.service';
 import type { Field, FieldSeason } from '../../../types';
 import './PcsePilotReadiness.css';
 
@@ -21,6 +26,15 @@ export default function PcsePilotReadiness({ field, seasons, loading, onAddSeaso
     Number.isFinite(field.longitude ?? field.parcelCentroidLng);
   const matchingSeason = seasons.find((season) => season.crop.toLocaleLowerCase('tr-TR') === field.crop.trim().toLocaleLowerCase('tr-TR'));
   const hasPlantingDate = Boolean(matchingSeason?.plantingDate);
+
+  useEffect(() => {
+    if (!isAnnual) return;
+    ensureModelReadinessFreshBestEffort(
+      String(field.id),
+      'pcse',
+      24,
+    );
+  }, [field.id, isAnnual]);
 
   return (
     <section className="tp-pcse-readiness" aria-label="Yıllık ürün gelişim takibi hazırlığı">
