@@ -5,7 +5,7 @@ import type {
 export type FieldGrowthObservation = {
   id: string;
   fieldId: string;
-  seasonId: string;
+  seasonId: string | null;
   observedOn: string;
   stage: Exclude<PhenologyStage, 'unknown'>;
   notes: string | null;
@@ -14,7 +14,7 @@ export type FieldGrowthObservation = {
 
 export type CreateFieldGrowthObservationInput = {
   fieldId: string;
-  seasonId: string;
+  seasonId?: string | null;
   observedOn: string;
   stage: Exclude<PhenologyStage, 'unknown'>;
   notes?: string | null;
