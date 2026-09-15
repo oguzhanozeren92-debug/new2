@@ -129,6 +129,17 @@ export async function runDualKcShadowEvidence(
   return request;
 }
 
+export function runDualKcShadowEvidenceBestEffort(fieldId: string) {
+  const field = String(fieldId ?? '').trim();
+  if (!field) return;
+
+  void runDualKcShadowEvidence(field).then((result) => {
+    if (!result.ok && result.error) {
+      console.warn('[dual-kc-shadow] refresh failed', result.error);
+    }
+  });
+}
+
 export function summarizeDualKcShadowRange(
   evidence: DualKcShadowEvidence | null | undefined,
 ) {
