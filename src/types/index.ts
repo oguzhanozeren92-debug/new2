@@ -32,6 +32,21 @@ export type FieldStatus = 'good' | 'check' | 'urgent';
 
 export type CropCycle = 'annual' | 'perennial';
 
+export type FieldIrrigationStatus =
+  | 'irrigated'
+  | 'rainfed'
+  | 'partial';
+
+export type FieldIrrigationMethod =
+  | 'sprinkler'
+  | 'basin'
+  | 'border'
+  | 'furrow_every_narrow'
+  | 'furrow_every_wide'
+  | 'furrow_alternating'
+  | 'trickle'
+  | 'unknown';
+
 export type LocationOption = {
   id: number;
   name: string;
@@ -60,6 +75,8 @@ export type Field = {
   cropCycle?: CropCycle;
   plantingYear?: number | null;
   bearing?: boolean | null;
+  irrigationStatus?: FieldIrrigationStatus | null;
+  irrigationMethod?: FieldIrrigationMethod | null;
 };
 
 export type FieldSection = {
