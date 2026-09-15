@@ -4,6 +4,10 @@ import {
   refreshModelReadinessBestEffort,
 } from '../../../services/modelReadiness.service';
 
+import {
+  runDualKcShadowEvidenceBestEffort,
+} from '../../irrigation/services/dualKcShadow.service';
+
 import type {
   FieldOperation,
   FieldOperationCreateInput,
@@ -155,6 +159,7 @@ export async function createFieldOperation(
   if (operation.type === 'Sulama') {
     refreshModelReadinessBestEffort(operation.fieldId, 'pyfao56');
     refreshModelReadinessBestEffort(operation.fieldId, 'aquacrop');
+    runDualKcShadowEvidenceBestEffort(operation.fieldId);
     syncIrrigationAmountTaskBestEffort(operation.fieldId);
   }
 
