@@ -72,8 +72,10 @@ export type FieldSection = {
 
 export type FieldSeason = {
   id: string;
+  fieldId: string;
   year: number;
   crop: string;
+  varietyName: string | null;
   plantingDate: string | null;
   harvestDate: string | null;
   notes: string | null;
