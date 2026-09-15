@@ -10,6 +10,7 @@ const corsHeaders = {
 const INITIAL_WATER_MAX_AGE_DAYS = 14;
 const REQUIRED_INITIAL_WATER_DEPTH_CM = 200;
 const AQUACROP_UPSTREAM_COMMIT = '36cc20e44644ed1704398889312435c85e04a2f3';
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const CROP_MODEL_MAP: Record<string, string> = {
   wheat: 'Wheat', bugday: 'Wheat', barley: 'Barley', arpa: 'Barley',
@@ -32,6 +33,16 @@ function finite(value: unknown): number | null {
 function normalizeKey(value: unknown) {
   return String(value ?? '').trim().toLocaleLowerCase('tr-TR').normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '').replace(/ı/g, 'i').replace(/[^a-z0-9]+/g, '');
+}
+function normalizeUnit(value: unknown) {
+  return String(value ?? '').trim().toLocaleLowerCase('tr-TR').replace(/³/g, '3').replace(/\s+/g, '');
+}
+function validIsoDate(value: unknown) {
+  const text = String(value ?? '').trim();
+  return ISO_DATE.test(text) && Number.isFinite(Date.parse(`${text}T00:00:00Z`));
+}
+function todayUtc() {
+  return new Date().toISOString().slice(0, 10);
 }
 function ageDays(iso: string | null | undefined) {
   if (!iso) return null; const timestamp = Date.parse(iso); if (!Number.isFinite(timestamp)) return null;
@@ -114,6 +125,95 @@ function buildInitialWaterAdapter(rows: any[]) {
   };
 }
 
+function buildRecordedIrrigationSchedule(rows: any[], areaDecare: number | null, plantingDate: unknown, harvestDate: unknown) {
+  const start = String(plantingDate ?? '').trim();
+  const end = validIsoDate(harvestDate) ? String(harvestDate) : todayUtc();
+  if (!validIsoDate(start)) {
+    return { available: false, source: 'activities', mode: null, settings: null, detail: 'Sulama günlüklerinden AquaCrop programı üretmek için sezon ekim tarihi gerekli.', quantifiedCount: 0, unquantifiedCount: 0 };
+  }
+
+  const seasonRows = (Array.isArray(rows) ? rows : []).filter((row) => {
+    const date = String(row?.activity_date ?? '');
+    return validIsoDate(date) && date >= start && date <= end;
+  });
+
+  if (!seasonRows.length) {
+    return { available: false, source: 'activities', mode: null, settings: null, detail: 'Bu sezon için kayıtlı Sulama işlemi yok.', quantifiedCount: 0, unquantifiedCount: 0 };
+  }
+
+  const quantified: Array<{ id: string; date: string; depthMm: number; quantity: number; unit: string }> = [];
+  const excluded: Array<{ id: string; date: string; reason: string; unit: string | null }> = [];
+
+  for (const row of seasonRows) {
+    const id = String(row?.id ?? '');
+    const date = String(row?.activity_date ?? '');
+    const quantity = finite(row?.quantity);
+    const unit = normalizeUnit(row?.unit);
+    let depthMm: number | null = null;
+
+    if (quantity === null || quantity <= 0) {
+      excluded.push({ id, date, reason: 'water_quantity_missing_or_invalid', unit: row?.unit == null ? null : String(row.unit) });
+      continue;
+    }
+
+    if (['m3/da', 'm3/dekar'].includes(unit)) {
+      depthMm = quantity;
+    } else if (['m3', 'metrekup', 'metreküp'].includes(unit)) {
+      if (areaDecare === null || areaDecare <= 0) {
+        excluded.push({ id, date, reason: 'field_area_decare_missing_for_total_volume_conversion', unit: String(row?.unit ?? '') });
+        continue;
+      }
+      depthMm = quantity / areaDecare;
+    } else {
+      excluded.push({ id, date, reason: unit === 'saat' ? 'duration_only_without_water_amount' : 'unsupported_irrigation_unit', unit: row?.unit == null ? null : String(row.unit) });
+      continue;
+    }
+
+    if (!Number.isFinite(depthMm) || depthMm <= 0 || depthMm > 500) {
+      excluded.push({ id, date, reason: 'derived_water_depth_out_of_range', unit: String(row?.unit ?? '') });
+      continue;
+    }
+
+    quantified.push({ id, date, depthMm: Number(depthMm.toFixed(3)), quantity, unit: String(row?.unit ?? '') });
+  }
+
+  if (excluded.length > 0) {
+    return {
+      available: false,
+      source: 'activities',
+      mode: null,
+      settings: null,
+      detail: `${seasonRows.length} Sulama kaydının ${excluded.length} tanesinde gerçek su miktarı güvenle mm'ye çevrilemiyor; eksik program AquaCrop'a gönderilmedi.`,
+      quantifiedCount: quantified.length,
+      unquantifiedCount: excluded.length,
+      excluded,
+    };
+  }
+
+  if (!quantified.length) {
+    return { available: false, source: 'activities', mode: null, settings: null, detail: 'Bu sezon için mm karşılığı hesaplanabilen Sulama kaydı yok.', quantifiedCount: 0, unquantifiedCount: 0 };
+  }
+
+  const grouped = new Map<string, number>();
+  for (const item of quantified) grouped.set(item.date, (grouped.get(item.date) ?? 0) + item.depthMm);
+  const schedule = [...grouped.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, depthMm]) => ({ date, depth_mm: Number(depthMm.toFixed(3)) }));
+
+  return {
+    available: true,
+    source: 'activities',
+    mode: 'recorded_schedule',
+    settings: { schedule },
+    managementSource: 'recorded_operations',
+    verifiedAt: schedule[schedule.length - 1]?.date ?? null,
+    quantifiedCount: quantified.length,
+    unquantifiedCount: 0,
+    conversion: '1 m³/da = 1 mm; total m³ / field area (da) = mm',
+    detail: `${quantified.length} ölçülü Sulama kaydı ${schedule.length} günlük AquaCrop sulama girdisine dönüştürüldü.`,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ ok: false, error: 'Yalnız POST desteklenir.' }, 405);
@@ -128,21 +228,70 @@ Deno.serve(async (req) => {
     if (Number.isInteger(Number(field.season))) seasonQuery = seasonQuery.eq('year', Number(field.season));
     const recentWaterSince = new Date(Date.now() - INITIAL_WATER_MAX_AGE_DAYS * 86400000).toISOString();
 
-    const [seasonResult, waterResult, managementResult, soilProfile] = await Promise.all([
+    const [seasonResult, waterResult, managementResult, irrigationActivitiesResult, soilProfile] = await Promise.all([
       seasonQuery.maybeSingle(),
       serviceClient.from('field_water_measurements').select('id,measured_at,volumetric_water_content,depth_from_cm,depth_to_cm,source').eq('user_id', user.id).eq('field_id', fieldId).gte('measured_at', recentWaterSince).order('measured_at', { ascending: false }).limit(30),
       serviceClient.from('field_aquacrop_management').select('id,mode,settings,source,verified_at,updated_at').eq('user_id', user.id).eq('field_id', fieldId).maybeSingle(),
+      serviceClient.from('activities').select('id,activity_date,quantity,unit').eq('user_id', user.id).eq('field_id', fieldId).eq('activity_type', 'Sulama').order('activity_date', { ascending: true }).limit(500),
       loadSoilProfile(supabaseUrl, serviceRoleKey, resolveLocation(field as Record<string, unknown>)),
     ]);
-    for (const result of [seasonResult, waterResult, managementResult]) if (result.error) throw result.error;
+    for (const result of [seasonResult, waterResult, managementResult, irrigationActivitiesResult]) if (result.error) throw result.error;
 
-    const cropParameters = resolveCropAdapter(field, seasonResult.data); const initialWater = buildInitialWaterAdapter(waterResult.data ?? []);
-    const irrigationStatus = normalizeKey(field.irrigation_status); const isRainfed = ['rainfed', 'susuz', 'dryland'].includes(irrigationStatus); const management = managementResult.data;
-    const irrigationManagement = isRainfed
-      ? { available: true, source: 'fields.irrigation_status', mode: 'rainfed', settings: {}, verifiedAt: null, detail: 'Tarla susuz/rainfed kayıtlı; AquaCrop için sulamasız yönetim açıkça tanımlı.' }
-      : management
-        ? { available: true, source: 'field_aquacrop_management', mode: String(management.mode), settings: management.settings ?? {}, verifiedAt: String(management.verified_at), managementSource: String(management.source) }
-        : { available: false, source: null, mode: null, settings: null, verifiedAt: null, detail: 'Sulu/kısmi sulamalı tarla için doğrulanmış AquaCrop sulama yönetimi kaydı yok.' };
+    const season = seasonResult.data;
+    const cropParameters = resolveCropAdapter(field, season);
+    const initialWater = buildInitialWaterAdapter(waterResult.data ?? []);
+    const areaDecare = finite(field.area_decare);
+    const recordedSchedule = buildRecordedIrrigationSchedule(irrigationActivitiesResult.data ?? [], areaDecare, season?.planting_date, season?.harvest_date);
+    const irrigationStatus = normalizeKey(field.irrigation_status);
+    const isRainfed = ['rainfed', 'susuz', 'dryland'].includes(irrigationStatus);
+    const management = managementResult.data;
+    const seasonIrrigationCount = Array.isArray(irrigationActivitiesResult.data)
+      ? irrigationActivitiesResult.data.filter((row: any) => {
+          const date = String(row?.activity_date ?? '');
+          const start = String(season?.planting_date ?? '');
+          const end = validIsoDate(season?.harvest_date) ? String(season.harvest_date) : todayUtc();
+          return validIsoDate(start) && validIsoDate(date) && date >= start && date <= end;
+        }).length
+      : 0;
+
+    let irrigationManagement: any;
+    if (management) {
+      irrigationManagement = {
+        available: true,
+        source: 'field_aquacrop_management',
+        mode: String(management.mode),
+        settings: management.settings ?? {},
+        verifiedAt: String(management.verified_at),
+        managementSource: String(management.source),
+        detail: 'AquaCrop yönetimi kullanıcı/operasyon doğrulamalı yönetim kaydından alındı.',
+      };
+    } else if (isRainfed && seasonIrrigationCount > 0) {
+      irrigationManagement = {
+        available: false,
+        source: 'fields.irrigation_status + activities',
+        mode: null,
+        settings: null,
+        verifiedAt: null,
+        detail: 'Tarla rainfed/susuz kayıtlı ancak aynı sezonda Sulama işlemi var. Çelişki çözülmeden AquaCrop yönetimi seçilmedi.',
+      };
+    } else if (isRainfed) {
+      irrigationManagement = {
+        available: true,
+        source: 'fields.irrigation_status',
+        mode: 'rainfed',
+        settings: {},
+        verifiedAt: null,
+        detail: 'Tarla susuz/rainfed kayıtlı ve sezonda Sulama kaydı yok; AquaCrop için sulamasız yönetim açıkça tanımlı.',
+      };
+    } else if (recordedSchedule.available) {
+      irrigationManagement = recordedSchedule;
+    } else {
+      irrigationManagement = {
+        ...recordedSchedule,
+        available: false,
+        detail: recordedSchedule.detail || 'Sulu/kısmi sulamalı tarla için doğrulanmış AquaCrop sulama yönetimi kaydı yok.',
+      };
+    }
 
     const availableInputs: string[] = [];
     if (cropParameters.available) availableInputs.push('crop_parameters');
@@ -151,7 +300,26 @@ Deno.serve(async (req) => {
     if (irrigationManagement.available) availableInputs.push('irrigation_management');
     const missingInputs = ['crop_parameters', 'soil_profile', 'initial_water_content', 'irrigation_management'].filter((key) => !availableInputs.includes(key));
 
-    return json({ ok: true, engine: 'aquacrop', mode: 'pilot-input-adapter', field_id: fieldId, production_authority: false, input_authority: 'server-derived', client_supplied_agricultural_values_accepted: false, available_inputs: availableInputs, missing_inputs: missingInputs, adapters: { crop_parameters: cropParameters, soil_profile: soilProfile, initial_water_content: initialWater, irrigation_management: irrigationManagement }, context: { planting_date: seasonResult.data?.planting_date ?? null, crop_identity: seasonResult.data?.crop ?? field.crop ?? null }, note: missingInputs.length === 0 ? 'AquaCrop pilot için ürün, 0–200 cm toprak profili, 0–200 cm başlangıç suyu ve sulama yönetimi gerçek/server-derived kaynaklarla hazır.' : 'Eksik AquaCrop girdileri için sentetik tarımsal değer üretilmedi; pilot bloklu kalır.' });
+    return json({
+      ok: true,
+      engine: 'aquacrop',
+      mode: 'pilot-input-adapter',
+      field_id: fieldId,
+      production_authority: false,
+      input_authority: 'server-derived',
+      client_supplied_agricultural_values_accepted: false,
+      available_inputs: availableInputs,
+      missing_inputs: missingInputs,
+      adapters: { crop_parameters: cropParameters, soil_profile: soilProfile, initial_water_content: initialWater, irrigation_management: irrigationManagement },
+      context: {
+        planting_date: season?.planting_date ?? null,
+        harvest_date: season?.harvest_date ?? null,
+        crop_identity: season?.crop ?? field.crop ?? null,
+        irrigation_status: field.irrigation_status ?? null,
+        area_decare: areaDecare,
+      },
+      note: missingInputs.length === 0 ? 'AquaCrop pilot için ürün, 0–200 cm toprak profili, 0–200 cm başlangıç suyu ve sulama yönetimi gerçek/server-derived kaynaklarla hazır.' : 'Eksik AquaCrop girdileri için sentetik tarımsal değer üretilmedi; pilot bloklu kalır.',
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'AquaCrop pilot input hazırlığı başarısız oldu.';
     console.error('[aquacrop-pilot-inputs]', message);
