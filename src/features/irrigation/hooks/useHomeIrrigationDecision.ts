@@ -4,6 +4,9 @@ import {
   loadLatestDualKcShadowAudit,
   runDualKcShadowEvidenceBestEffort,
 } from '../services/dualKcShadow.service';
+import {
+  publishHomeDualKcEvidenceSnapshot,
+} from '../services/homeDualKcEvidenceSnapshot';
 
 type HomeIrrigationDecisionState = {
   fieldKey: string;
@@ -268,6 +271,17 @@ export function useHomeIrrigationDecision(field: any | null | undefined) {
   const stateBelongsToField = state.fieldKey === fieldKey;
   const evidenceBelongsToField = evidenceState.fieldKey === fieldKey;
   const result = stateBelongsToField ? state.data : null;
+  const modelEvidence: HomeDualKcEvidenceState = evidenceBelongsToField
+    ? evidenceState
+    : fieldKey
+      ? {
+          fieldKey,
+          status: isRainfed ? 'not_applicable' : 'loading',
+          missingInputs: [],
+        }
+      : INITIAL_EVIDENCE_STATE;
+
+  publishHomeDualKcEvidenceSnapshot(modelEvidence);
 
   return {
     result,
@@ -275,11 +289,7 @@ export function useHomeIrrigationDecision(field: any | null | undefined) {
     status: stateBelongsToField ? state.status : fieldKey ? 'loading' : 'idle',
     loading: stateBelongsToField ? state.status === 'loading' : Boolean(fieldKey),
     error: stateBelongsToField ? state.error : null,
-    modelEvidence: evidenceBelongsToField
-      ? evidenceState
-      : fieldKey
-        ? { fieldKey, status: isRainfed ? 'not_applicable' : 'loading', missingInputs: [] }
-        : INITIAL_EVIDENCE_STATE,
+    modelEvidence,
     refresh,
   };
 }
