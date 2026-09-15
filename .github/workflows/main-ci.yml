@@ -33,12 +33,40 @@ jobs:
       - name: Build
         run: npm run build
 
-  model-gateway-syntax:
+  model-gateway:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/model-gateway/requirements.txt
+      - name: Install model gateway dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r services/model-gateway/requirements.txt
       - name: Compile model gateway Python
         run: python -m compileall -q services/model-gateway
+      - name: Import model engines
+        env:
+          PYTHONPATH: services/model-gateway
+        run: |
+          python - <<'PY'
+          import aquacrop
+          import pcse
+          import pyfao56
+          from app import app
+          from aquacrop_runner import AquaCropPilotRequest, run_aquacrop_pilot
+          from engine_registry import ENGINE_REGISTRY
+
+          assert app is not None
+          assert AquaCropPilotRequest is not None
+          assert run_aquacrop_pilot is not None
+          assert ENGINE_REGISTRY['pyfao56']['package'] == 'pyfao56==1.4.3'
+          assert ENGINE_REGISTRY['pcse']['package'] == 'pcse==6.0.13'
+          assert ENGINE_REGISTRY['aquacrop']['package'] == 'aquacrop==3.1.0'
+          print('pyfao56:', getattr(pyfao56, '__version__', 'imported'))
+          print('pcse:', getattr(pcse, '__version__', 'imported'))
+          print('aquacrop:', getattr(aquacrop, '__version__', 'imported'))
+          PY
