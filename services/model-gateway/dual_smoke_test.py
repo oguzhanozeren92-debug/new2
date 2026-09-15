@@ -4,6 +4,7 @@ from datetime import date, timedelta
 import os
 
 from pyfao56_dual_runner import (
+    DualKcBasalProfile,
     DualKcInitialState,
     DualKcStation,
     DualKcWeatherDay,
@@ -37,6 +38,11 @@ def main() -> None:
             elevation_m=850.0,
             wind_height_m=2.0,
         ),
+        basal_profile=DualKcBasalProfile(
+            initial=0.20,
+            mid=0.85,
+            end=0.60,
+        ),
         state=DualKcInitialState(
             theta_fc=0.30,
             theta_wp=0.12,
@@ -69,6 +75,7 @@ def main() -> None:
     assert len(result["scenarios"]) == 2
 
     for scenario in result["scenarios"]:
+        assert scenario["basal_profile"] == {"initial": 0.2, "mid": 0.85, "end": 0.6}
         assert len(scenario["days"]) == 3
         assert scenario["initial_state"]["surface_depletion_mm"] == 10.0
         assert scenario["initial_state"]["root_depletion_mm"] == 50.0
