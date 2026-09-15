@@ -7,6 +7,10 @@ import {
 } from '../../../services/modelReadiness.service';
 
 import {
+  syncIrrigationEvidenceTasksBestEffort,
+} from '../../tasks/services/fieldTasks.service';
+
+import {
   runDualKcShadowEvidenceBestEffort,
 } from './dualKcShadow.service';
 
@@ -86,6 +90,7 @@ function validateInput(input: CreateSoilWaterMeasurementInput) {
 function refreshWaterModels(fieldId: string) {
   refreshModelReadinessBestEffort(fieldId, 'pyfao56');
   refreshModelReadinessBestEffort(fieldId, 'aquacrop');
+  syncIrrigationEvidenceTasksBestEffort(fieldId);
   runDualKcShadowEvidenceBestEffort(fieldId);
 }
 
