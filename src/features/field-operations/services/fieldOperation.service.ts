@@ -1,5 +1,9 @@
 import { supabase } from '../../../supabaseClient';
 
+import {
+  refreshPyFao56ReadinessBestEffort,
+} from '../../../services/modelReadiness.service';
+
 import type {
   FieldOperation,
   FieldOperationCreateInput,
@@ -134,6 +138,10 @@ export async function createFieldOperation(
   if (error) throw error;
 
   const operation = mapOperation(data);
+
+  if (operation.type === 'Sulama') {
+    refreshPyFao56ReadinessBestEffort(operation.fieldId);
+  }
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
