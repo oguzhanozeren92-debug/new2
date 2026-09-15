@@ -229,7 +229,7 @@ Deno.serve(async (req: Request) => {
     const fieldId = String(body?.field_id ?? '').trim();
     if (!fieldId) return json({ ok: false, error: 'field_id gerekli.' }, 400);
     const forbidden = [
-      'latitude', 'longitude', 'kcb', 'rew', 'rew_values_mm', 'fw', 'theta_fc', 'theta_wp',
+      'latitude', 'longitude', 'kcb', 'basal_profile', 'rew', 'rew_values_mm', 'fw', 'theta_fc', 'theta_wp',
       'initial_de_mm', 'initial_dr_mm', 'root_depth_m', 'weather', 'days', 'parameters',
     ];
     if (forbidden.some((key) => key in body)) {
@@ -317,6 +317,15 @@ Deno.serve(async (req: Request) => {
       finite(kcbContext?.kcb) !== null;
     if (!validatedKcb) missing.push('validated_basal_kcb');
 
+    const basalInitial = finite(kcbContext?.reference_profile?.initial);
+    const basalMid = finite(kcbContext?.reference_profile?.mid);
+    const basalEnd = finite(kcbContext?.reference_profile?.end);
+    const validBasalProfile =
+      basalInitial !== null && basalMid !== null && basalEnd !== null &&
+      basalInitial > 0 && basalMid > 0 && basalEnd > 0 &&
+      Math.abs(basalMid - basalInitial) > 1e-9;
+    if (!validBasalProfile) missing.push('fao56_basal_kcb_profile');
+
     const rootDepthM = finite(waterInputs?.root_zone?.scheduling_depth_m);
     const thetaFc = finite(waterInputs?.root_zone?.field_capacity_vol);
     const thetaWp = finite(waterInputs?.root_zone?.wilting_point_vol);
@@ -367,6 +376,11 @@ Deno.serve(async (req: Request) => {
             elevation_m: elevationM,
             wind_height_m: 10,
           },
+          basal_profile: {
+            initial: basalInitial,
+            mid: basalMid,
+            end: basalEnd,
+          },
           state: {
             theta_fc: thetaFc,
             theta_wp: thetaWp,
@@ -403,6 +417,11 @@ Deno.serve(async (req: Request) => {
       },
       evidence: {
         basal_kcb: kcbContext,
+        basal_profile: validBasalProfile ? {
+          initial: basalInitial,
+          mid: basalMid,
+          end: basalEnd,
+        } : null,
         root_zone: {
           depth_m: rootDepthM,
           field_capacity_vol: thetaFc,
@@ -436,6 +455,7 @@ Deno.serve(async (req: Request) => {
       gateway_payload: gatewayPayload,
       assumptions: gatewayPayload ? [
         `Doğrulanmış güncel Kcb ${FORECAST_DAYS} günlük kısa shadow penceresinde sabit tutulur.`,
+        'FAO basal Kcb initial/mid/end profili yalnız pyfao56 iç interpolasyon geometrisini korumak için taşınır; günlük Kcb saha-doğrulanmış Update girdisiyle verilir.',
         'REW tek sayıya indirgenmez; FAO-56 referans aralığının alt ve üst sınırı ayrı senaryo olarak çalıştırılır.',
         rootStateSource === 'irrigation-water-balance-state'
           ? 'Kök bölgesi başlangıç Dr değeri gerçek nem sensörü değil; son miktarlı sulama + hava dengesi tahminidir.'
