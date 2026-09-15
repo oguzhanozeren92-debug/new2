@@ -233,22 +233,34 @@ export async function ensureModelReadinessFresh(
   };
 }
 
-export function ensurePyFao56ReadinessFreshBestEffort(
+export function ensureModelReadinessFreshBestEffort(
   fieldId: string,
+  engine: ModelEngine,
   maxAgeHours = DEFAULT_MAX_AGE_HOURS,
 ) {
   void ensureModelReadinessFresh(
     fieldId,
-    'pyfao56',
+    engine,
     maxAgeHours,
   ).then((result) => {
     if (result.refresh && !result.refresh.ok) {
       console.warn(
-        '[model-readiness] pyfao56 freshness refresh failed',
+        `[model-readiness] ${engine} freshness refresh failed`,
         result.refresh.error,
       );
     }
   });
+}
+
+export function ensurePyFao56ReadinessFreshBestEffort(
+  fieldId: string,
+  maxAgeHours = DEFAULT_MAX_AGE_HOURS,
+) {
+  ensureModelReadinessFreshBestEffort(
+    fieldId,
+    'pyfao56',
+    maxAgeHours,
+  );
 }
 
 export function refreshPyFao56ReadinessBestEffort(
