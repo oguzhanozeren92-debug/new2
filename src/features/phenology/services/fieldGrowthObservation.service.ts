@@ -35,7 +35,7 @@ function mapRow(row: any): FieldGrowthObservation {
   return {
     id: String(row.id),
     fieldId: String(row.field_id),
-    seasonId: String(row.season_id),
+    seasonId: row.season_id == null ? null : String(row.season_id),
     observedOn: String(row.observed_on),
     stage: row.stage,
     notes: row.notes == null ? null : String(row.notes),
@@ -45,13 +45,12 @@ function mapRow(row: any): FieldGrowthObservation {
 
 function validateInput(input: CreateFieldGrowthObservationInput) {
   const fieldId = String(input.fieldId ?? '').trim();
-  const seasonId = String(input.seasonId ?? '').trim();
+  const seasonId = String(input.seasonId ?? '').trim() || null;
   const observedOn = String(input.observedOn ?? '').trim();
   const stage = String(input.stage ?? '').trim();
   const notes = String(input.notes ?? '').trim();
 
   if (!fieldId) throw new Error('Gelişim gözlemi için tarla kimliği gerekli.');
-  if (!seasonId) throw new Error('Gelişim gözlemi için sezon kimliği gerekli.');
   if (!DATE_PATTERN.test(observedOn) || !Number.isFinite(Date.parse(`${observedOn}T00:00:00Z`))) {
     throw new Error('Gelişim gözlemi tarihi YYYY-MM-DD biçiminde olmalı.');
   }
@@ -86,20 +85,48 @@ export async function recordFieldGrowthObservation(
   if (!user) throw new Error('Gelişim gözlemi kaydı için oturum gerekli.');
 
   const {
-    data: season,
-    error: seasonError,
+    data: field,
+    error: fieldError,
   } = await supabase
-    .from('field_seasons')
-    .select('id,field_id,user_id')
-    .eq('id', validated.seasonId)
-    .eq('field_id', validated.fieldId)
+    .from('fields')
+    .select('id,crop_cycle,user_id')
+    .eq('id', validated.fieldId)
     .eq('user_id', user.id)
     .maybeSingle();
 
-  if (seasonError) throw seasonError;
-  if (!season) {
-    throw new Error('Sezon bu tarlaya ait değil veya erişim yok.');
+  if (fieldError) throw fieldError;
+  if (!field) {
+    throw new Error('Tarla bulunamadı veya erişim yok.');
   }
+
+  const cropCycle = String(field.crop_cycle ?? 'annual').trim();
+  const isPerennial = cropCycle === 'perennial';
+
+  if (!isPerennial && !validated.seasonId) {
+    throw new Error('Tek yıllık ürün gözlemi için sezon seçimi gerekli.');
+  }
+
+  if (validated.seasonId) {
+    const {
+      data: season,
+      error: seasonError,
+    } = await supabase
+      .from('field_seasons')
+      .select('id,field_id,user_id')
+      .eq('id', validated.seasonId)
+      .eq('field_id', validated.fieldId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (seasonError) throw seasonError;
+    if (!season) {
+      throw new Error('Sezon bu tarlaya ait değil veya erişim yok.');
+    }
+  }
+
+  const seasonId = isPerennial
+    ? null
+    : validated.seasonId;
 
   const {
     data,
@@ -109,7 +136,7 @@ export async function recordFieldGrowthObservation(
     .insert({
       user_id: user.id,
       field_id: validated.fieldId,
-      season_id: validated.seasonId,
+      season_id: seasonId,
       observed_on: validated.observedOn,
       stage: validated.stage,
       notes: validated.notes,
@@ -119,7 +146,7 @@ export async function recordFieldGrowthObservation(
 
   if (error) {
     if (error.code === '23505') {
-      throw new Error('Bu sezon, tarih ve gelişim evresi için gözlem zaten kayıtlı.');
+      throw new Error('Bu tarih ve gelişim evresi için gözlem zaten kayıtlı.');
     }
     throw error;
   }
