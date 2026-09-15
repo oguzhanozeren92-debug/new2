@@ -70,6 +70,19 @@ function validateInput(input: CreateFieldGrowthObservationInput) {
   };
 }
 
+function syncGrowthStageObservationTaskBestEffort(fieldId: string) {
+  void supabase
+    .rpc('tp_sync_growth_stage_observation_task', { p_field_id: fieldId })
+    .then(({ error }) => {
+      if (error) {
+        console.warn('[growth-observation] Görev senkronizasyonu yapılamadı:', error.message);
+      }
+    })
+    .catch((error: unknown) => {
+      console.warn('[growth-observation] Görev senkronizasyonu yapılamadı:', error);
+    });
+}
+
 export async function recordFieldGrowthObservation(
   input: CreateFieldGrowthObservationInput,
 ): Promise<FieldGrowthObservation> {
@@ -152,6 +165,7 @@ export async function recordFieldGrowthObservation(
   }
 
   refreshPyFao56ReadinessBestEffort(validated.fieldId);
+  syncGrowthStageObservationTaskBestEffort(validated.fieldId);
   return mapRow(data);
 }
 
@@ -203,6 +217,8 @@ export async function deleteFieldGrowthObservation(
   if (error) throw error;
 
   if (existing?.field_id) {
-    refreshPyFao56ReadinessBestEffort(String(existing.field_id));
+    const fieldId = String(existing.field_id);
+    refreshPyFao56ReadinessBestEffort(fieldId);
+    syncGrowthStageObservationTaskBestEffort(fieldId);
   }
 }
