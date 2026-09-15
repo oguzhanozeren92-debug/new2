@@ -63,7 +63,7 @@ async function authenticatedClients(req: Request) {
   const { data, error } = await userClient.auth.getUser();
   if (error || !data.user) throw new Error('Model readiness için geçerli kullanıcı oturumu gerekli.');
 
-  return { user: data.user, serviceClient, supabaseUrl, anonKey, authorization };
+  return { user: data.user, userClient, serviceClient, supabaseUrl, anonKey, authorization };
 }
 
 async function callAdapter(
@@ -213,6 +213,25 @@ async function persistSnapshot(serviceClient: any, values: Record<string, unknow
   return true;
 }
 
+async function syncModelReadinessTasks(userClient: any, fieldId: string) {
+  const { data, error } = await userClient.rpc('tp_sync_model_readiness_tasks', {
+    p_field_id: fieldId,
+  });
+
+  if (error) {
+    console.warn('[model-engine-readiness] task sync failed', error.message);
+    return {
+      synced: false,
+      openTaskCount: null,
+    };
+  }
+
+  return {
+    synced: true,
+    openTaskCount: Array.isArray(data) ? data.length : null,
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ ok: false, error: 'Yalnız POST desteklenir.' }, 405);
@@ -238,7 +257,14 @@ Deno.serve(async (req: Request) => {
       }, 400);
     }
 
-    const { user, serviceClient, supabaseUrl, anonKey, authorization } = await authenticatedClients(req);
+    const {
+      user,
+      userClient,
+      serviceClient,
+      supabaseUrl,
+      anonKey,
+      authorization,
+    } = await authenticatedClients(req);
     const config = ENGINE_CONFIG[engine];
 
     let adapterPayload: any;
@@ -312,6 +338,8 @@ Deno.serve(async (req: Request) => {
       checked_at: checkedAt,
     });
 
+    const taskSync = await syncModelReadinessTasks(userClient, fieldId);
+
     return json({
       ok: true,
       engine,
@@ -329,6 +357,8 @@ Deno.serve(async (req: Request) => {
       client_supplied_available_inputs_ignored: true,
       checked_at: checkedAt,
       snapshot_persisted: snapshotPersisted,
+      readiness_tasks_synced: taskSync.synced,
+      readiness_open_task_count: taskSync.openTaskCount,
       note: ready
         ? 'Motor girdileri ilgili server-side adapter sözleşmesini karşılıyor; rollout seviyesi yine production otoritesi değildir.'
         : 'Eksik girdiler sentetik değerle doldurulmadı; motor rollout kapısı açıkça bloklu kalır.',
