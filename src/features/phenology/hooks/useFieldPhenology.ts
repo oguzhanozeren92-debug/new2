@@ -23,9 +23,32 @@ import type {
   PhenologyResult,
 } from '../types/phenology';
 
+const KNOWN_PERENNIAL_CROPS = new Set([
+  'antep fıstığı', 'antepfıstığı', 'antep fistigi', 'antepfistigi', 'fıstık', 'fistik', 'pistachio',
+  'badem', 'almond',
+  'kiraz', 'cherry', 'cherries',
+  'ceviz', 'walnut', 'walnuts',
+  'üzüm', 'uzum', 'grape', 'grapes',
+  'elma', 'apple',
+  'armut', 'pear',
+  'zeytin', 'olive',
+  'fındık', 'findik', 'hazelnut',
+  'kayısı', 'kayisi', 'apricot',
+  'şeftali', 'seftali', 'peach',
+  'erik', 'plum',
+  'nar', 'pomegranate',
+]);
+
 function textOrNull(value: unknown) {
   const text = String(value ?? '').trim();
   return text || null;
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? '')
+    .trim()
+    .toLocaleLowerCase('tr-TR')
+    .replace(/\s+/g, ' ');
 }
 
 export function useFieldPhenology(
@@ -36,20 +59,34 @@ export function useFieldPhenology(
   ndviTrend?:
     NdviTrendForPhenology,
 ): PhenologyResult | null {
+  const effectiveField = useMemo(() => {
+    if (!field) return null;
+
+    const record = field as FieldForPhenology & Record<string, unknown>;
+    const cropName = normalizeText(record.cropName ?? record.crop);
+    if (!KNOWN_PERENNIAL_CROPS.has(cropName)) return field;
+
+    return {
+      ...field,
+      cropCycle: 'perennial',
+      crop_cycle: 'perennial',
+    };
+  }, [field]);
+
   const localPhenology = useMemo(
     () => {
-      if (!field) {
+      if (!effectiveField) {
         return null;
       }
 
       return buildFieldPhenology(
-        field,
+        effectiveField,
         ndviTrend ??
           null,
       );
     },
     [
-      field,
+      effectiveField,
       ndviTrend?.direction,
       ndviTrend?.quality,
       ndviTrend?.latestAverage,
@@ -58,7 +95,7 @@ export function useFieldPhenology(
     ],
   );
 
-  const fieldRecord = field as (FieldForPhenology & Record<string, unknown>) | null | undefined;
+  const fieldRecord = effectiveField as (FieldForPhenology & Record<string, unknown>) | null | undefined;
   const fieldId = textOrNull(fieldRecord?.id);
   const cropCycle = textOrNull(fieldRecord?.cropCycle ?? fieldRecord?.crop_cycle)?.toLowerCase() ?? 'unknown';
   const sowingDate = textOrNull(
