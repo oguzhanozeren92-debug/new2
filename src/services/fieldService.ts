@@ -1,12 +1,39 @@
 import { supabase } from '../supabaseClient';
-import type { CropCycle, Field, FieldStatus } from '../types';
+import type {
+  CropCycle,
+  Field,
+  FieldIrrigationMethod,
+  FieldIrrigationStatus,
+  FieldStatus,
+} from '../types';
 
 const FIELD_SELECT =
-  'id, name, city, district, village, ada, parcel, area_decare, crop, season, status, crop_cycle, planting_year, bearing, latitude, longitude, parcel_geometry, parcel_centroid_lat, parcel_centroid_lng, parcel_lookup_status, parcel_lookup_source, sort_order';
+  'id, name, city, district, village, ada, parcel, area_decare, crop, season, status, crop_cycle, planting_year, bearing, irrigation_status, irrigation_method, latitude, longitude, parcel_geometry, parcel_centroid_lat, parcel_centroid_lng, parcel_lookup_status, parcel_lookup_source, sort_order';
+
+function normalizeIrrigationStatus(value: unknown): FieldIrrigationStatus | null {
+  const normalized = String(value ?? '').trim();
+  return normalized === 'irrigated' || normalized === 'rainfed' || normalized === 'partial'
+    ? normalized
+    : null;
+}
+
+function normalizeIrrigationMethod(value: unknown): FieldIrrigationMethod | null {
+  const normalized = String(value ?? '').trim();
+  return [
+    'sprinkler',
+    'basin',
+    'border',
+    'furrow_every_narrow',
+    'furrow_every_wide',
+    'furrow_alternating',
+    'trickle',
+    'unknown',
+  ].includes(normalized)
+    ? (normalized as FieldIrrigationMethod)
+    : null;
+}
 
 export async function fetchUserFields(): Promise<Field[]> {
-  if (!supabase) return [];
-
   const {
     data: { user },
     error: userError,
@@ -64,6 +91,8 @@ export async function fetchUserFields(): Promise<Field[]> {
       item.bearing === null || item.bearing === undefined
         ? null
         : Boolean(item.bearing),
+    irrigationStatus: normalizeIrrigationStatus(item.irrigation_status),
+    irrigationMethod: normalizeIrrigationMethod(item.irrigation_method),
   }));
 }
 
@@ -87,8 +116,6 @@ export type CreateFieldInput = {
 };
 
 export async function createUserField(input: CreateFieldInput) {
-  if (!supabase) throw new Error('Supabase bağlantısı hazır değil.');
-
   const {
     data: { user },
     error: userError,
@@ -125,8 +152,6 @@ export async function createUserField(input: CreateFieldInput) {
 }
 
 export async function deleteUserField(fieldId: string): Promise<void> {
-  if (!supabase) throw new Error('Supabase bağlantısı hazır değil.');
-
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
   if (!user) throw new Error('Tarlayı silmek için giriş yapmalısın.');
