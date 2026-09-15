@@ -67,6 +67,15 @@ function normalizeTask(row: RawFieldTask): FieldTask {
   };
 }
 
+function emitTasksChanged(fieldId: string) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent('tp:tasks-changed', {
+      detail: { fieldId },
+    }),
+  );
+}
+
 async function synchronizeGeneratedTasks(fieldId: string) {
   if (!supabase) {
     throw new Error('Supabase bağlantısı hazır değil.');
@@ -111,6 +120,44 @@ export async function getFieldTasks(fieldId: string): Promise<FieldTask[]> {
   return (data ?? []).map((row) => normalizeTask(row as RawFieldTask));
 }
 
+export async function dismissFieldTask(task: FieldTask) {
+  if (!supabase) {
+    throw new Error('Supabase bağlantısı hazır değil.');
+  }
+
+  const taskId = text(task.id);
+  if (!taskId) throw new Error('Görev kimliği bulunamadı.');
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) throw userError;
+  if (!user) throw new Error('Görevi ertelemek için oturum gerekli.');
+
+  const { data, error } = await supabase
+    .from('field_todos')
+    .update({
+      dismissed: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', taskId)
+    .eq('user_id', user.id)
+    .select('id,field_id')
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error('Görev bulunamadı veya güncellenemedi.');
+
+  emitTasksChanged(text(data.field_id) || task.fieldId);
+
+  return {
+    dismissed: true,
+    message: 'Şimdilik gizledim. İlgili veriyi daha sonra yine ekleyebilirsin.',
+  };
+}
+
 export async function completeFieldTask(task: FieldTask) {
   if (!supabase) {
     throw new Error('Supabase bağlantısı hazır değil.');
@@ -141,6 +188,8 @@ export async function completeFieldTask(task: FieldTask) {
       };
     }
 
+    emitTasksChanged(task.fieldId);
+
     return {
       completed: true,
       awardedPoints: Number((result as any)?.awarded_points ?? 0),
@@ -160,6 +209,8 @@ export async function completeFieldTask(task: FieldTask) {
     .eq('id', task.id);
 
   if (error) throw error;
+
+  emitTasksChanged(task.fieldId);
 
   return {
     completed: true,
