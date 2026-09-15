@@ -252,6 +252,23 @@ export function ensureModelReadinessFreshBestEffort(
   });
 }
 
+export function refreshModelReadinessBestEffort(
+  fieldId: string,
+  engine: ModelEngine,
+) {
+  void refreshModelReadiness(
+    fieldId,
+    engine,
+  ).then((result) => {
+    if (!result.ok) {
+      console.warn(
+        `[model-readiness] ${engine} refresh failed`,
+        result.error,
+      );
+    }
+  });
+}
+
 export function ensurePyFao56ReadinessFreshBestEffort(
   fieldId: string,
   maxAgeHours = DEFAULT_MAX_AGE_HOURS,
@@ -266,15 +283,8 @@ export function ensurePyFao56ReadinessFreshBestEffort(
 export function refreshPyFao56ReadinessBestEffort(
   fieldId: string,
 ) {
-  void refreshModelReadiness(
+  refreshModelReadinessBestEffort(
     fieldId,
     'pyfao56',
-  ).then((result) => {
-    if (!result.ok) {
-      console.warn(
-        '[model-readiness] pyfao56 refresh failed',
-        result.error,
-      );
-    }
-  });
+  );
 }
