@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   completeFieldTask,
+  dismissFieldTask,
   getFieldTasks,
   type FieldTask,
 } from '../services/fieldTasks.service';
@@ -66,6 +67,20 @@ export function useFieldTasks(fieldId: string, open: boolean) {
     }
   }, [refresh]);
 
+  const dismiss = useCallback(async (task: FieldTask) => {
+    setMessage(null);
+    try {
+      const result = await dismissFieldTask(task);
+      setMessage(result.message);
+      await refresh();
+      return result;
+    } catch (caught) {
+      const next = caught instanceof Error ? caught.message : 'Görev ertelenemedi.';
+      setMessage(next);
+      return { dismissed: false, message: next };
+    }
+  }, [refresh]);
+
   return {
     tasks,
     loading,
@@ -73,5 +88,6 @@ export function useFieldTasks(fieldId: string, open: boolean) {
     message,
     refresh,
     complete,
+    dismiss,
   };
 }
