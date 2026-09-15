@@ -1,12 +1,29 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { IrrigationDecisionResult } from '../types/irrigationDecision';
-import { runDualKcShadowEvidenceBestEffort } from '../services/dualKcShadow.service';
+import {
+  loadLatestDualKcShadowAudit,
+  runDualKcShadowEvidenceBestEffort,
+} from '../services/dualKcShadow.service';
 
 type HomeIrrigationDecisionState = {
   fieldKey: string;
   status: 'idle' | 'loading' | 'ready' | 'error';
   data: IrrigationDecisionResult | null;
   error: string | null;
+};
+
+export type HomeDualKcEvidenceStatus =
+  | 'idle'
+  | 'loading'
+  | 'ready'
+  | 'waiting'
+  | 'not_applicable'
+  | 'error';
+
+type HomeDualKcEvidenceState = {
+  fieldKey: string;
+  status: HomeDualKcEvidenceStatus;
+  missingInputs: string[];
 };
 
 const INITIAL_STATE: HomeIrrigationDecisionState = {
@@ -16,6 +33,12 @@ const INITIAL_STATE: HomeIrrigationDecisionState = {
   error: null,
 };
 
+const INITIAL_EVIDENCE_STATE: HomeDualKcEvidenceState = {
+  fieldKey: '',
+  status: 'idle',
+  missingInputs: [],
+};
+
 /**
  * Ana ekran için hata-izole Irrigation Engine köprüsü.
  *
@@ -23,12 +46,18 @@ const INITIAL_STATE: HomeIrrigationDecisionState = {
  * fenoloji gibi alt bağımlılıklardan biri yüklenemezse HomeScreen beyaz ekrana
  * düşmez; hook error durumuna geçer ve ortak karar motoru hava-tabanlı güvenli
  * fallback ile çalışmaya devam eder.
+ *
+ * Dual-Kc sonucu burada yalnız MODEL KANITI olarak okunur. Production sulama
+ * kararını, karar kodunu veya önerilen su miktarını değiştirmez.
  */
 export function useHomeIrrigationDecision(field: any | null | undefined) {
   const fieldKey = field?.id != null ? String(field.id) : '';
   const isDemo = Boolean(field?.demo);
+  const irrigationStatus = String(field?.irrigationStatus ?? '').trim().toLowerCase();
+  const isRainfed = irrigationStatus === 'rainfed';
   const [refreshKey, setRefreshKey] = useState(0);
   const [state, setState] = useState<HomeIrrigationDecisionState>(INITIAL_STATE);
+  const [evidenceState, setEvidenceState] = useState<HomeDualKcEvidenceState>(INITIAL_EVIDENCE_STATE);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,6 +129,89 @@ export function useHomeIrrigationDecision(field: any | null | undefined) {
   }, [fieldKey, isDemo, refreshKey]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    if (!fieldKey || isDemo) {
+      setEvidenceState(INITIAL_EVIDENCE_STATE);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (isRainfed) {
+      setEvidenceState({
+        fieldKey,
+        status: 'not_applicable',
+        missingInputs: [],
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const loadEvidence = async () => {
+      setEvidenceState((current) => ({
+        fieldKey,
+        status: current.fieldKey === fieldKey && current.status !== 'idle'
+          ? current.status
+          : 'loading',
+        missingInputs: current.fieldKey === fieldKey ? current.missingInputs : [],
+      }));
+
+      try {
+        const audit = await loadLatestDualKcShadowAudit(fieldKey);
+        if (cancelled) return;
+
+        if (!audit) {
+          setEvidenceState({ fieldKey, status: 'waiting', missingInputs: [] });
+          return;
+        }
+
+        setEvidenceState({
+          fieldKey,
+          status:
+            audit.status === 'completed'
+              ? 'ready'
+              : audit.status === 'failed'
+                ? 'error'
+                : audit.status === 'running' || audit.status === 'queued'
+                  ? 'loading'
+                  : 'waiting',
+          missingInputs: audit.missingInputs,
+        });
+      } catch {
+        if (cancelled) return;
+        setEvidenceState({ fieldKey, status: 'error', missingInputs: [] });
+      }
+    };
+
+    void loadEvidence();
+
+    const handleEvidenceUpdated = (event: Event) => {
+      const changedFieldId = String((event as CustomEvent)?.detail?.fieldId ?? '');
+      if (changedFieldId !== fieldKey) return;
+      void loadEvidence();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener(
+        'tp:dual-kc-shadow-updated',
+        handleEvidenceUpdated as EventListener,
+      );
+    }
+
+    return () => {
+      cancelled = true;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener(
+          'tp:dual-kc-shadow-updated',
+          handleEvidenceUpdated as EventListener,
+        );
+      }
+    };
+  }, [fieldKey, isDemo, isRainfed]);
+
+  useEffect(() => {
     if (!fieldKey || isDemo || typeof window === 'undefined') return;
 
     const handleFieldContextUpdated = (event: Event) => {
@@ -154,6 +266,7 @@ export function useHomeIrrigationDecision(field: any | null | undefined) {
   }, [fieldKey, isDemo]);
 
   const stateBelongsToField = state.fieldKey === fieldKey;
+  const evidenceBelongsToField = evidenceState.fieldKey === fieldKey;
   const result = stateBelongsToField ? state.data : null;
 
   return {
@@ -162,6 +275,11 @@ export function useHomeIrrigationDecision(field: any | null | undefined) {
     status: stateBelongsToField ? state.status : fieldKey ? 'loading' : 'idle',
     loading: stateBelongsToField ? state.status === 'loading' : Boolean(fieldKey),
     error: stateBelongsToField ? state.error : null,
+    modelEvidence: evidenceBelongsToField
+      ? evidenceState
+      : fieldKey
+        ? { fieldKey, status: isRainfed ? 'not_applicable' : 'loading', missingInputs: [] }
+        : INITIAL_EVIDENCE_STATE,
     refresh,
   };
 }
