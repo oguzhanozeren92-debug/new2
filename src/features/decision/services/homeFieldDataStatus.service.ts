@@ -1,5 +1,6 @@
 import type { HomeFieldDataStatusItem } from '../components/HomeFieldDataStatus';
 import { isRecentSatelliteObservation } from '../../satellite/services/buildHomeSatelliteDecision';
+import type { HomeDualKcEvidenceStatus } from '../../irrigation/hooks/useHomeIrrigationDecision';
 import type { FieldWeatherState } from '../../../types';
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -9,7 +10,11 @@ type Sources = {
   phenology: { status: LoadStatus; usable: boolean; stageLabel?: string | null };
   satellite: { status: LoadStatus; quality?: string; observationCount: number; latestDate?: string | null };
   soil: { status: LoadStatus; reportDate?: string | null };
-  irrigation: { status: LoadStatus; decisionCode?: string | null };
+  irrigation: {
+    status: LoadStatus;
+    decisionCode?: string | null;
+    evidenceStatus?: HomeDualKcEvidenceStatus;
+  };
 };
 
 function dayLabel(value: string | null | undefined) {
@@ -17,6 +22,15 @@ function dayLabel(value: string | null | undefined) {
   return date && Number.isFinite(date.getTime())
     ? new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
     : null;
+}
+
+function irrigationEvidenceSuffix(status: HomeDualKcEvidenceStatus | undefined) {
+  if (status === 'ready') return ' · gelişmiş model kanıtı hazır';
+  if (status === 'waiting') return ' · gelişmiş model veri bekliyor';
+  if (status === 'loading') return ' · model kanıtı kontrol ediliyor';
+  if (status === 'not_applicable') return ' · susuz tarla';
+  if (status === 'error') return ' · model kanıtı alınamadı';
+  return '';
 }
 
 export function hasUsableFieldWeatherForecast(state: FieldWeatherState | null | undefined, now: Date = new Date()) {
@@ -32,6 +46,7 @@ export function buildHomeFieldDataStatuses(sources: Sources): HomeFieldDataStatu
   const satelliteDate = dayLabel(satellite.latestDate);
   const satelliteRecent = satellite.quality === 'usable' && isRecentSatelliteObservation(satellite.latestDate);
   const reportDate = dayLabel(soil.reportDate);
+  const evidenceSuffix = irrigationEvidenceSuffix(irrigation.evidenceStatus);
 
   return [
     {
@@ -67,7 +82,16 @@ export function buildHomeFieldDataStatuses(sources: Sources): HomeFieldDataStatu
       target: 'irrigation_detail',
       actionLabel: 'Sulamayı aç',
       status: irrigation.status === 'error' ? 'error' : irrigation.status === 'loading' ? 'loading' : irrigation.status === 'ready' && irrigation.decisionCode && irrigation.decisionCode !== 'needs_data' ? 'ready' : 'missing',
-      detail: irrigation.status === 'error' ? 'Veri alınamadı' : irrigation.status === 'loading' ? 'Değerlendiriliyor' : irrigation.decisionCode === 'needs_data' ? 'Sulama bilgisi eksik' : irrigation.status === 'ready' && irrigation.decisionCode ? 'Değerlendirme hazır' : 'Sulama verisi yok',
+      detail:
+        (irrigation.status === 'error'
+          ? 'Veri alınamadı'
+          : irrigation.status === 'loading'
+            ? 'Değerlendiriliyor'
+            : irrigation.decisionCode === 'needs_data'
+              ? 'Sulama bilgisi eksik'
+              : irrigation.status === 'ready' && irrigation.decisionCode
+                ? 'Değerlendirme hazır'
+                : 'Sulama verisi yok') + evidenceSuffix,
     },
   ];
 }
