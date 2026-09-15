@@ -5,6 +5,7 @@ import {
 } from '../../../services/modelReadiness.service';
 import type { Field, FieldSeason } from '../../../types';
 import FieldWaterMeasurements from '../../irrigation/components/FieldWaterMeasurements';
+import FieldGrowthObservations from './FieldGrowthObservations';
 import { checkSeasonWeather, hasFieldSoilReport, type SeasonWeatherCoverage } from '../services/seasonModelInputs.service';
 import './SeasonModelInputs.css';
 
@@ -78,6 +79,13 @@ export default function SeasonModelInputs({ field, seasons, seasonsLoading }: Pr
         <p>Bu gelişim modeli kontrolü tek yıllık ürünler için hazırlandı. {field.cropCycle === 'perennial' || catalogueCycle === 'perennial' ? `${field.crop} çok yıllık ürün olduğu için` : `${field.crop} tek yıllık ürün olarak doğrulanmadığı için`} bu tarlada geçmiş hava sorgusu ve PCSE denemesi açılmıyor.</p>
       </div>
     </details></section>
+    {(field.cropCycle === 'perennial' || catalogueCycle === 'perennial') && (
+      <FieldGrowthObservations
+        fieldId={String(field.id)}
+        seasons={seasons}
+        cropCycle="perennial"
+      />
+    )}
     <FieldWaterMeasurements fieldId={String(field.id)} />
   </>;
 
