@@ -14,6 +14,7 @@ import './FieldGrowthObservations.css';
 type Props = {
   fieldId: string;
   seasons: FieldSeason[];
+  cropCycle: 'annual' | 'perennial';
 };
 
 type CanonicalStage = Exclude<PhenologyStage, 'unknown'>;
@@ -47,7 +48,8 @@ function todayLocal() {
   return new Date().toLocaleDateString('en-CA');
 }
 
-export default function FieldGrowthObservations({ fieldId, seasons }: Props) {
+export default function FieldGrowthObservations({ fieldId, seasons, cropCycle }: Props) {
+  const perennial = cropCycle === 'perennial';
   const [items, setItems] = useState<FieldGrowthObservation[]>([]);
   const [seasonId, setSeasonId] = useState('');
   const [observedOn, setObservedOn] = useState(todayLocal());
@@ -59,7 +61,7 @@ export default function FieldGrowthObservations({ fieldId, seasons }: Props) {
 
   const observedDays = new Set(
     items
-      .filter((item) => item.seasonId === seasonId)
+      .filter((item) => perennial ? item.seasonId === null : item.seasonId === seasonId)
       .map((item) => item.observedOn),
   ).size;
 
@@ -93,27 +95,43 @@ export default function FieldGrowthObservations({ fieldId, seasons }: Props) {
   }, [fieldId]);
 
   useEffect(() => {
+    if (perennial) {
+      if (seasonId) setSeasonId('');
+      return;
+    }
+
     if (!seasons.some((season) => season.id === seasonId)) {
       setSeasonId(seasons[0]?.id ?? '');
     }
-  }, [seasons, seasonId]);
+  }, [perennial, seasons, seasonId]);
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
     if (busy) return;
 
-    const season = seasons.find((item) => item.id === seasonId);
-    if (!season || !observedOn || !stage) {
-      setError('Sezon, gözlem tarihi ve bitkinin evresini seç.');
+    const season = perennial
+      ? null
+      : seasons.find((item) => item.id === seasonId) ?? null;
+
+    if ((!perennial && !season) || !observedOn || !stage) {
+      setError(
+        perennial
+          ? 'Gözlem tarihi ve bitkinin evresini seç.'
+          : 'Sezon, gözlem tarihi ve bitkinin evresini seç.',
+      );
       return;
     }
 
     if (
       observedOn > todayLocal() ||
-      (season.plantingDate && observedOn < season.plantingDate) ||
-      (season.harvestDate && observedOn > season.harvestDate)
+      (!perennial && season?.plantingDate && observedOn < season.plantingDate) ||
+      (!perennial && season?.harvestDate && observedOn > season.harvestDate)
     ) {
-      setError('Gözlem tarihi sezon aralığında olmalı ve gelecekte olamaz.');
+      setError(
+        perennial
+          ? 'Gözlem tarihi gelecekte olamaz.'
+          : 'Gözlem tarihi sezon aralığında olmalı ve gelecekte olamaz.',
+      );
       return;
     }
 
@@ -124,7 +142,7 @@ export default function FieldGrowthObservations({ fieldId, seasons }: Props) {
     try {
       await recordFieldGrowthObservation({
         fieldId,
-        seasonId,
+        seasonId: perennial ? null : seasonId,
         observedOn,
         stage,
         notes,
@@ -166,6 +184,8 @@ export default function FieldGrowthObservations({ fieldId, seasons }: Props) {
     }
   };
 
+  const canRenderForm = perennial || seasons.length > 0;
+
   return (
     <section className="tp-growth-observations" aria-label="Tarih vererek bitki gelişimi gözlemi ekle">
       <small>SAHADAN GÖZLEM</small>
@@ -175,24 +195,26 @@ export default function FieldGrowthObservations({ fieldId, seasons }: Props) {
         aynı günün otomatik fenoloji sonucu ile uyuşursa Kcb doğrulamasına kanıt olabilir.
       </p>
 
-      {seasons.length === 0 ? (
-        <p>Önce bu tarla için ürün ve sezon ekle.</p>
+      {!canRenderForm ? (
+        <p>Önce bu tek yıllık tarla için ürün ve sezon ekle.</p>
       ) : (
         <form onSubmit={(event) => void save(event)}>
-          <label>
-            Sezon
-            <select
-              value={seasonId}
-              onChange={(event) => setSeasonId(event.target.value)}
-              required
-            >
-              {seasons.map((season) => (
-                <option key={season.id} value={season.id}>
-                  {season.year} · {season.crop}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!perennial && (
+            <label>
+              Sezon
+              <select
+                value={seasonId}
+                onChange={(event) => setSeasonId(event.target.value)}
+                required
+              >
+                {seasons.map((season) => (
+                  <option key={season.id} value={season.id}>
+                    {season.year} · {season.crop}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <label>
             Gördüğün tarih
@@ -237,10 +259,12 @@ export default function FieldGrowthObservations({ fieldId, seasons }: Props) {
         </form>
       )}
 
-      {seasons.length > 0 && (
+      {canRenderForm && (
         <p>
-          Seçilen sezonda {observedDays} ayrı güne ait gözlem var. Kcb doğrulamasında yalnız
-          tarih ve evre eşleşen gerçek saha gözlemi kullanılır.
+          {perennial
+            ? `Bu çok yıllık tarlada ${observedDays} ayrı güne ait saha gözlemi var.`
+            : `Seçilen sezonda ${observedDays} ayrı güne ait gözlem var.`}{' '}
+          Kcb doğrulamasında yalnız tarih ve evre eşleşen gerçek saha gözlemi kullanılır.
         </p>
       )}
 
@@ -254,7 +278,9 @@ export default function FieldGrowthObservations({ fieldId, seasons }: Props) {
               <div>
                 <strong>{STAGE_LABEL.get(item.stage) ?? item.stage}</strong>
                 <span>
-                  {item.observedOn} · {seasons.find((season) => season.id === item.seasonId)?.crop ?? 'Sezon'}
+                  {item.observedOn} · {item.seasonId
+                    ? seasons.find((season) => season.id === item.seasonId)?.crop ?? 'Sezon'
+                    : 'Çok yıllık saha gözlemi'}
                 </span>
                 {item.notes && <p>{item.notes}</p>}
               </div>
