@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Check, ChevronRight, ListTodo, RefreshCw, X } from 'lucide-react';
+import { Check, ChevronRight, Clock3, ListTodo, RefreshCw, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useFieldTasks } from '../hooks/useFieldTasks';
 import type { FieldTask } from '../services/fieldTasks.service';
@@ -12,6 +12,8 @@ type Props = {
   onClose: () => void;
   onAction: (task: FieldTask) => void;
 };
+
+const WATER_MEASUREMENT_FOCUS_KEY = 'tp_focus_field_water_measurement';
 
 function sourceLabel(source: string) {
   if (source === 'field-readiness') return 'PUSULA GÖREVİ';
@@ -45,6 +47,20 @@ function isPhotoCheckTask(task: FieldTask) {
   );
 }
 
+function isIrrigationMethodTask(task: FieldTask) {
+  return (
+    task.taskKey === 'irrigation-method' ||
+    task.actionTarget === 'field-irrigation-method'
+  );
+}
+
+function isSurfaceWaterMeasurementTask(task: FieldTask) {
+  return (
+    task.taskKey === 'model-surface-water-measurement' ||
+    task.actionTarget === 'field-water-measurement'
+  );
+}
+
 function taskTitle(task: FieldTask) {
   if (!isPhotoCheckTask(task)) return task.title;
   if (task.title.toLocaleLowerCase('tr-TR').includes('fotoğraf yükle')) return task.title;
@@ -52,7 +68,50 @@ function taskTitle(task: FieldTask) {
 }
 
 function actionLabel(task: FieldTask) {
+  if (isIrrigationMethodTask(task)) return "Pusula'ya cevap ver";
+  if (isSurfaceWaterMeasurementTask(task)) return 'Ölçümü ekle';
   return isPhotoCheckTask(task) ? 'Kontrol et ve fotoğraf yükle' : 'Göreve git';
+}
+
+function scrollToPusulaQuestion(attempt = 0) {
+  const node = document.querySelector('.tp-pusula-question') as HTMLElement | null;
+  if (node) {
+    node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  if (attempt < 5) {
+    window.setTimeout(() => scrollToPusulaQuestion(attempt + 1), 140);
+  }
+}
+
+function openProductionTab(attempt = 0) {
+  const buttons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('.tp-field-detail-tabs button'),
+  );
+  const production = buttons.find(
+    (button) => button.textContent?.trim().toLocaleLowerCase('tr-TR') === 'üretim',
+  );
+
+  if (production) {
+    production.click();
+    return;
+  }
+
+  if (attempt < 7) {
+    window.setTimeout(() => openProductionTab(attempt + 1), 120);
+  }
+}
+
+function markWaterMeasurementFocus(fieldId: string) {
+  try {
+    window.sessionStorage.setItem(
+      WATER_MEASUREMENT_FOCUS_KEY,
+      JSON.stringify({ fieldId, createdAt: Date.now() }),
+    );
+  } catch {
+    // sessionStorage kapalıysa normal tarla detayı yönlendirmesi yine çalışır.
+  }
 }
 
 export default function HomeTasksSheet({
@@ -63,7 +122,7 @@ export default function HomeTasksSheet({
   onAction,
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const { tasks, loading, error, message, refresh, complete } = useFieldTasks(fieldId, open);
+  const { tasks, loading, error, message, refresh, complete, dismiss } = useFieldTasks(fieldId, open);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -74,6 +133,25 @@ export default function HomeTasksSheet({
   const close = () => {
     dialogRef.current?.close();
     onClose();
+  };
+
+  const openTask = (task: FieldTask) => {
+    if (isIrrigationMethodTask(task)) {
+      close();
+      window.setTimeout(() => scrollToPusulaQuestion(), 80);
+      return;
+    }
+
+    if (isSurfaceWaterMeasurementTask(task)) {
+      markWaterMeasurementFocus(task.fieldId || fieldId);
+      close();
+      onAction(task);
+      window.setTimeout(() => openProductionTab(), 100);
+      return;
+    }
+
+    close();
+    onAction(task);
   };
 
   return createPortal(
@@ -146,14 +224,20 @@ export default function HomeTasksSheet({
                 {task.description ? <p>{task.description}</p> : null}
 
                 <div className="tp-home-task-actions">
+                  <button
+                    type="button"
+                    className="tp-home-task-later"
+                    onClick={() => void dismiss(task)}
+                  >
+                    <Clock3 size={14} />
+                    Şimdi değil
+                  </button>
+
                   {task.actionTarget ? (
                     <button
                       type="button"
                       className={`tp-home-task-open ${isPhotoCheckTask(task) ? 'is-photo-action' : ''}`}
-                      onClick={() => {
-                        close();
-                        onAction(task);
-                      }}
+                      onClick={() => openTask(task)}
                     >
                       {actionLabel(task)}
                       <ChevronRight size={16} />
