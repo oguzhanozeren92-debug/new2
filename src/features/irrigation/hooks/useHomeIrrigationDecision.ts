@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { IrrigationDecisionResult } from '../types/irrigationDecision';
+import { runDualKcShadowEvidenceBestEffort } from '../services/dualKcShadow.service';
 
 type HomeIrrigationDecisionState = {
   fieldKey: string;
@@ -109,26 +110,29 @@ export function useHomeIrrigationDecision(field: any | null | undefined) {
         : [];
 
       if (changedFieldId !== fieldKey) return;
+
+      const irrigationRelevant = [
+        'irrigation_status',
+        'irrigation_method',
+        'canopy_development_class',
+        'canopy_height_class',
+        'canopy_cover_percent',
+        'canopy_height_m',
+        'bearing',
+        'crop_cycle',
+        'activities',
+        'irrigation_history',
+      ];
+
       if (
         changedFields.length > 0 &&
-        !changedFields.some((name) =>
-          [
-            'irrigation_status',
-            'canopy_development_class',
-            'canopy_height_class',
-            'canopy_cover_percent',
-            'canopy_height_m',
-            'bearing',
-            'crop_cycle',
-            'activities',
-            'irrigation_history',
-          ].includes(name),
-        )
+        !changedFields.some((name) => irrigationRelevant.includes(name))
       ) {
         return;
       }
 
       setRefreshKey((value) => value + 1);
+      runDualKcShadowEvidenceBestEffort(fieldKey);
     };
 
     window.addEventListener(
