@@ -119,19 +119,28 @@ function normalizeStandardAdapter(engine: 'pcse' | 'aquacrop', payload: any) {
   };
 }
 
-function normalizePyFao56(payload: any) {
+function normalizePyFao56(payload: any, irrigationBalance: any) {
   const required = [...ENGINE_CONFIG.pyfao56.required] as string[];
   const availableInputs: string[] = [];
 
   if (payload?.basal_kcb?.status === 'validated') {
     availableInputs.push('validated_basal_kcb');
   }
-  if (
+
+  const measuredCurrentState =
     presentFinite(payload?.root_zone?.current_water_vol) &&
-    presentFinite(payload?.root_zone?.current_depletion_mm)
-  ) {
+    presentFinite(payload?.root_zone?.current_depletion_mm);
+
+  const estimatedCurrentState =
+    irrigationBalance?.ready === true &&
+    irrigationBalance?.status === 'estimated' &&
+    presentFinite(irrigationBalance?.root_zone?.current_depletion_mm) &&
+    presentFinite(irrigationBalance?.root_zone?.total_available_water_mm);
+
+  if (measuredCurrentState || estimatedCurrentState) {
     availableInputs.push('current_soil_water_state');
   }
+
   if (
     presentFinite(payload?.surface_evaporation?.tew_mm) &&
     presentFinite(payload?.surface_evaporation?.de_mm) &&
@@ -146,17 +155,28 @@ function normalizePyFao56(payload: any) {
     missingInputs,
     evidence: {
       basal_kcb: payload?.basal_kcb ?? null,
-      root_zone: payload?.root_zone ?? null,
+      root_zone_measurement: payload?.root_zone ?? null,
+      root_zone_water_balance: irrigationBalance ?? null,
+      current_soil_water_state_source: measuredCurrentState
+        ? 'field_water_measurements'
+        : estimatedCurrentState
+          ? 'irrigation-water-balance-state'
+          : null,
       surface_evaporation: payload?.surface_evaporation ?? null,
       soil_profile: payload?.soil_profile ?? null,
     },
     context: {
-      field: payload?.field ?? null,
+      field: payload?.field ?? irrigationBalance?.field ?? null,
       adapter_full_water_balance_ready: Boolean(payload?.full_water_balance_ready),
+      estimated_water_balance_ready: Boolean(estimatedCurrentState),
+      estimated_water_balance_confidence: estimatedCurrentState
+        ? irrigationBalance?.confidence ?? null
+        : null,
     },
-    adapterMissingInputs: Array.isArray(payload?.missing_inputs)
-      ? payload.missing_inputs.map(String)
-      : [],
+    adapterMissingInputs: [
+      ...(Array.isArray(payload?.missing_inputs) ? payload.missing_inputs.map(String) : []),
+      ...(Array.isArray(irrigationBalance?.missing_inputs) ? irrigationBalance.missing_inputs.map(String) : []),
+    ],
   };
 }
 
@@ -198,10 +218,40 @@ Deno.serve(async (req: Request) => {
 
     const { user, serviceClient, supabaseUrl, anonKey, authorization } = await authenticatedClients(req);
     const config = ENGINE_CONFIG[engine];
-    const adapterPayload = await callAdapter(supabaseUrl, anonKey, authorization, config.adapter, fieldId);
+
+    let adapterPayload: any;
+    let irrigationBalance: any = null;
+
+    if (engine === 'pyfao56') {
+      const [pyfaoResult, balanceResult] = await Promise.allSettled([
+        callAdapter(supabaseUrl, anonKey, authorization, config.adapter, fieldId),
+        callAdapter(supabaseUrl, anonKey, authorization, 'irrigation-water-balance-state', fieldId),
+      ]);
+
+      if (pyfaoResult.status === 'rejected') throw pyfaoResult.reason;
+      adapterPayload = pyfaoResult.value;
+      irrigationBalance = balanceResult.status === 'fulfilled'
+        ? balanceResult.value
+        : {
+            ok: true,
+            ready: false,
+            status: 'unavailable',
+            production_authority: false,
+            input_authority: 'server-derived',
+            missing_inputs: ['irrigation_water_balance_unavailable'],
+          };
+    } else {
+      adapterPayload = await callAdapter(
+        supabaseUrl,
+        anonKey,
+        authorization,
+        config.adapter,
+        fieldId,
+      );
+    }
 
     const normalized = engine === 'pyfao56'
-      ? normalizePyFao56(adapterPayload)
+      ? normalizePyFao56(adapterPayload, irrigationBalance)
       : normalizeStandardAdapter(engine, adapterPayload);
 
     const ready = normalized.missingInputs.length === 0;
