@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
   deleteSoilWaterMeasurement,
@@ -16,6 +16,9 @@ import './FieldWaterMeasurements.css';
 type Props = {
   fieldId: string;
 };
+
+const WATER_MEASUREMENT_FOCUS_KEY = 'tp_focus_field_water_measurement';
+const WATER_MEASUREMENT_FOCUS_MAX_AGE_MS = 15_000;
 
 const SOURCE_OPTIONS: Array<{
   value: SoilWaterMeasurementSource;
@@ -45,7 +48,39 @@ function sourceLabel(source: SoilWaterMeasurementSource) {
   return SOURCE_OPTIONS.find((item) => item.value === source)?.label ?? source;
 }
 
+function shouldFocusSurfaceMeasurement(fieldId: string) {
+  try {
+    const raw = window.sessionStorage.getItem(WATER_MEASUREMENT_FOCUS_KEY);
+    if (!raw) return false;
+
+    const parsed = JSON.parse(raw) as {
+      fieldId?: unknown;
+      createdAt?: unknown;
+    };
+    const markerFieldId = String(parsed?.fieldId ?? '').trim();
+    const createdAt = Number(parsed?.createdAt ?? 0);
+    const fresh = Number.isFinite(createdAt) &&
+      Date.now() - createdAt >= 0 &&
+      Date.now() - createdAt <= WATER_MEASUREMENT_FOCUS_MAX_AGE_MS;
+
+    if (markerFieldId === String(fieldId) && fresh) {
+      window.sessionStorage.removeItem(WATER_MEASUREMENT_FOCUS_KEY);
+      return true;
+    }
+
+    if (!fresh) {
+      window.sessionStorage.removeItem(WATER_MEASUREMENT_FOCUS_KEY);
+    }
+  } catch {
+    // sessionStorage kapalıysa normal kullanım devam eder.
+  }
+
+  return false;
+}
+
 export default function FieldWaterMeasurements({ fieldId }: Props) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const [items, setItems] = useState<SoilWaterMeasurement[]>([]);
   const [measuredAt, setMeasuredAt] = useState(localDateTimeInputValue());
   const [waterPercent, setWaterPercent] = useState('');
@@ -85,6 +120,23 @@ export default function FieldWaterMeasurements({ fieldId }: Props) {
     return () => {
       active = false;
     };
+  }, [fieldId]);
+
+  useEffect(() => {
+    if (!shouldFocusSurfaceMeasurement(fieldId)) return;
+
+    setDepthFromCm('0');
+    setDepthToCm('15');
+    if (detailsRef.current) detailsRef.current.open = true;
+
+    const timer = window.setTimeout(() => {
+      sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      sectionRef.current
+        ?.querySelector<HTMLInputElement>('input[type="datetime-local"]')
+        ?.focus();
+    }, 120);
+
+    return () => window.clearTimeout(timer);
   }, [fieldId]);
 
   const save = async (event: FormEvent) => {
@@ -175,8 +227,13 @@ export default function FieldWaterMeasurements({ fieldId }: Props) {
   };
 
   return (
-    <section className="tp-field-water-measurements" aria-label="Toprak nem ölçümleri">
-      <details>
+    <section
+      id="field-water-measurements"
+      ref={sectionRef}
+      className="tp-field-water-measurements"
+      aria-label="Toprak nem ölçümleri"
+    >
+      <details ref={detailsRef}>
         <summary>
           Toprak nem ölçümü
           <span aria-hidden="true">⌄</span>
