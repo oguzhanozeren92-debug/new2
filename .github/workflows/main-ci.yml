@@ -53,19 +53,39 @@ jobs:
           PYTHONPATH: services/model-gateway
         run: |
           python - <<'PY'
+          from datetime import date
+
           import aquacrop
           import pcse
           import pyfao56
           from app import app
           from aquacrop_runner import AquaCropPilotRequest, run_aquacrop_pilot
           from engine_registry import ENGINE_REGISTRY
+          from pcse_runner import PCSEPhenologyPilotRequest, run_pcse_phenology_pilot
 
           assert app is not None
           assert AquaCropPilotRequest is not None
           assert run_aquacrop_pilot is not None
+          assert PCSEPhenologyPilotRequest is not None
+          assert run_pcse_phenology_pilot is not None
           assert ENGINE_REGISTRY['pyfao56']['package'] == 'pyfao56==1.4.3'
           assert ENGINE_REGISTRY['pcse']['package'] == 'pcse==6.0.13'
+          assert ENGINE_REGISTRY['pcse']['pilot_model'] == 'Wofost72_PP'
+          assert ENGINE_REGISTRY['pcse']['water_stress_authority'] is False
           assert ENGINE_REGISTRY['aquacrop']['package'] == 'aquacrop==3.1.0'
+
+          request = PCSEPhenologyPilotRequest(
+              field_id='ci-field',
+              latitude=39.0,
+              longitude=32.0,
+              crop_key='wheat',
+              variety_key='Winter_wheat_101',
+              planting_date=date(2025, 10, 15),
+              as_of_date=date(2026, 3, 1),
+          )
+          assert request.crop_key == 'wheat'
+          assert request.max_duration_days == 365
+
           print('pyfao56:', getattr(pyfao56, '__version__', 'imported'))
           print('pcse:', getattr(pcse, '__version__', 'imported'))
           print('aquacrop:', getattr(aquacrop, '__version__', 'imported'))
