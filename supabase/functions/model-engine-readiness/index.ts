@@ -38,6 +38,10 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function presentFinite(value: unknown) {
+  return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+}
+
 async function authenticatedClients(req: Request) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -59,13 +63,7 @@ async function authenticatedClients(req: Request) {
   const { data, error } = await userClient.auth.getUser();
   if (error || !data.user) throw new Error('Model readiness için geçerli kullanıcı oturumu gerekli.');
 
-  return {
-    user: data.user,
-    serviceClient,
-    supabaseUrl,
-    anonKey,
-    authorization,
-  };
+  return { user: data.user, serviceClient, supabaseUrl, anonKey, authorization };
 }
 
 async function callAdapter(
@@ -90,8 +88,7 @@ async function callAdapter(
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || !payload || payload.ok === false) {
-      const error = payload?.error ?? `${slug} HTTP ${response.status}`;
-      const failure = new Error(String(error));
+      const failure = new Error(String(payload?.error ?? `${slug} HTTP ${response.status}`));
       (failure as any).status = response.status;
       throw failure;
     }
@@ -130,15 +127,15 @@ function normalizePyFao56(payload: any) {
     availableInputs.push('validated_basal_kcb');
   }
   if (
-    Number.isFinite(Number(payload?.root_zone?.current_water_vol)) &&
-    Number.isFinite(Number(payload?.root_zone?.current_depletion_mm))
+    presentFinite(payload?.root_zone?.current_water_vol) &&
+    presentFinite(payload?.root_zone?.current_depletion_mm)
   ) {
     availableInputs.push('current_soil_water_state');
   }
   if (
-    Number.isFinite(Number(payload?.surface_evaporation?.tew_mm)) &&
-    Number.isFinite(Number(payload?.surface_evaporation?.de_mm)) &&
-    Number.isFinite(Number(payload?.surface_evaporation?.rew_mm))
+    presentFinite(payload?.surface_evaporation?.tew_mm) &&
+    presentFinite(payload?.surface_evaporation?.de_mm) &&
+    presentFinite(payload?.surface_evaporation?.rew_mm)
   ) {
     availableInputs.push('surface_evaporation_layer');
   }
@@ -167,7 +164,6 @@ async function persistSnapshot(serviceClient: any, values: Record<string, unknow
   const { error } = await serviceClient
     .from('model_engine_readiness_snapshots')
     .upsert(values, { onConflict: 'user_id,field_id,engine' });
-
   if (error) {
     console.warn('[model-engine-readiness] snapshot persistence failed', error.message);
     return false;
@@ -202,13 +198,7 @@ Deno.serve(async (req: Request) => {
 
     const { user, serviceClient, supabaseUrl, anonKey, authorization } = await authenticatedClients(req);
     const config = ENGINE_CONFIG[engine];
-    const adapterPayload = await callAdapter(
-      supabaseUrl,
-      anonKey,
-      authorization,
-      config.adapter,
-      fieldId,
-    );
+    const adapterPayload = await callAdapter(supabaseUrl, anonKey, authorization, config.adapter, fieldId);
 
     const normalized = engine === 'pyfao56'
       ? normalizePyFao56(adapterPayload)
