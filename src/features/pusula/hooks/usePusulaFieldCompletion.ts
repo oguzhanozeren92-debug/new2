@@ -135,12 +135,7 @@ export function usePusulaFieldCompletion({
 
   const rawField = useMemo(() => {
     if (!fieldId || !Array.isArray(fields)) return null;
-
-    return (
-      fields.find(
-        (item) => String(item?.id ?? '') === fieldId,
-      ) ?? null
-    );
+    return fields.find((item) => String(item?.id ?? '') === fieldId) ?? null;
   }, [fieldId, fields]);
 
   useEffect(() => {
@@ -154,7 +149,6 @@ export function usePusulaFieldCompletion({
         data: null,
         error: null,
       });
-
       return () => {
         cancelled = true;
       };
@@ -171,7 +165,6 @@ export function usePusulaFieldCompletion({
     void loadFieldCompletionContext(fieldId)
       .then((data) => {
         if (cancelled) return;
-
         setContextState({
           fieldId,
           checked: true,
@@ -182,7 +175,6 @@ export function usePusulaFieldCompletion({
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-
         setContextState({
           fieldId,
           checked: true,
@@ -211,7 +203,6 @@ export function usePusulaFieldCompletion({
         value: null,
         error: null,
       });
-
       return () => {
         cancelled = true;
       };
@@ -256,29 +247,15 @@ export function usePusulaFieldCompletion({
   }, [fieldId, field?.demo, reloadKey]);
 
   useEffect(() => {
-    if (
-      typeof window === 'undefined' ||
-      !fieldId
-    ) {
-      return;
-    }
+    if (typeof window === 'undefined' || !fieldId) return;
 
     const handleFieldContextUpdated = (event: Event) => {
-      const detail =
-        (event as CustomEvent)?.detail ?? {};
+      const detail = (event as CustomEvent)?.detail ?? {};
+      if (String(detail?.fieldId ?? '') !== fieldId) return;
 
-      if (
-        String(detail?.fieldId ?? '') !== fieldId
-      ) {
-        return;
-      }
-
-      const changedFields =
-        Array.isArray(detail?.changedFields)
-          ? detail.changedFields.map(
-              (item: unknown) => String(item),
-            )
-          : [];
+      const changedFields = Array.isArray(detail?.changedFields)
+        ? detail.changedFields.map((item: unknown) => String(item))
+        : [];
 
       if (
         changedFields.some((name: string) =>
@@ -336,296 +313,272 @@ export function usePusulaFieldCompletion({
             plantingYear: context.plantingYear,
           })
         : null,
-    [
-      context?.cropName,
-      context?.plantingYear,
-    ],
+    [context?.cropName, context?.plantingYear],
   );
 
-  const question =
-    useMemo<PusulaFieldQuestion | null>(() => {
-      if (
-        !fieldId ||
-        field?.demo ||
-        contextState.fieldId !== fieldId ||
-        !contextState.checked ||
-        contextState.loading ||
-        !context ||
-        irrigationMethodState.fieldId !== fieldId ||
-        !irrigationMethodState.checked ||
-        irrigationMethodState.loading
-      ) {
-        return null;
-      }
+  const question = useMemo<PusulaFieldQuestion | null>(() => {
+    if (
+      !fieldId ||
+      field?.demo ||
+      contextState.fieldId !== fieldId ||
+      !contextState.checked ||
+      contextState.loading ||
+      !context ||
+      irrigationMethodState.fieldId !== fieldId ||
+      !irrigationMethodState.checked ||
+      irrigationMethodState.loading
+    ) {
+      return null;
+    }
 
-      const irrigationQuestion = (): PusulaFieldQuestion => ({
-        id: `field:${fieldId}:irrigation-status`,
+    const irrigationQuestion = (): PusulaFieldQuestion => ({
+      id: `field:${fieldId}:irrigation-status`,
+      kind: 'choice',
+      prompt: `${fieldName} nasıl sulanıyor?`,
+      helper:
+        'Bunu bilirsem su stresi ve sulama yorumlarını doğru yapabilirim.',
+      options: [
+        { value: 'sulu', label: 'Sulu' },
+        { value: 'susuz', label: 'Susuz' },
+        { value: 'kısmi', label: 'Kısmi / İhtiyaca göre' },
+      ],
+    });
+
+    const irrigationMethodQuestion = (): PusulaFieldQuestion => ({
+      id: `field:${fieldId}:irrigation-method`,
+      kind: 'choice',
+      prompt: `${fieldName} için hangi sulama yöntemi kullanılıyor?`,
+      helper:
+        'Yalnız yöntemi seç. Islanan yüzey oranını tek sayı uydurmak yerine FAO-56 referans aralığıyla modelleyeceğim.',
+      options: [
+        { value: 'trickle', label: 'Damlama' },
+        { value: 'sprinkler', label: 'Yağmurlama' },
+        { value: 'basin', label: 'Tava / göllendirme' },
+        { value: 'border', label: 'Şerit / salma' },
+        { value: 'furrow_every_narrow', label: 'Karık · her karık, dar yatak' },
+        { value: 'furrow_every_wide', label: 'Karık · her karık, geniş yatak' },
+        { value: 'furrow_alternating', label: 'Karık · dönüşümlü karık' },
+        { value: 'unknown', label: 'Bilmiyorum / emin değilim' },
+      ],
+    });
+
+    const needsIrrigationMethod =
+      context.irrigationStatus === 'irrigated' ||
+      context.irrigationStatus === 'partial';
+
+    const isOrchardCanopyCrop = isTreeOrchardCanopyCrop(context.cropName);
+    const needsYoungOrchardCanopy =
+      context.bearing === false && isOrchardCanopyCrop;
+
+    const canopyDevelopmentQuestion = (): PusulaFieldQuestion => {
+      const ageLead = ageSuggestion
+        ? `${fieldName} ${ageSuggestion.plantingYear}'de dikilmiş; yaklaşık ${ageSuggestion.age} yaşında. Yaşına ve ürününe bakınca “${ageSuggestion.suggestedLabel}” bana başlangıç için en yakın seçenek gibi geliyor.`
+        : context.bearing === false
+          ? `${fieldName} genç / ürün vermeyen bahçe olarak kayıtlı.`
+          : `${fieldName} için taç gelişimi henüz kayıtlı değil.`;
+
+      return {
+        id: `field:${fieldId}:canopy-development`,
         kind: 'choice',
-        prompt: `${fieldName} nasıl sulanıyor?`,
+        prompt:
+          `${ageLead} Ağaçların taç gelişimi gerçekte hangisine daha yakın?`,
         helper:
-          'Bunu bilirsem su stresi ve sulama yorumlarını doğru yapabilirim.',
-        options: [
-          { value: 'sulu', label: 'Sulu' },
-          { value: 'susuz', label: 'Susuz' },
-          { value: 'kısmi', label: 'Kısmi / İhtiyaca göre' },
-        ],
-      });
+          'Ağacın dallı-yapraklı üst kısmını düşün. Kesin ölçüm gerekmiyor; senin saha gözlemin model tahmininden üstündür.',
+        options: CANOPY_DEVELOPMENT_OPTIONS.map((option) => ({
+          value: option.value,
+          label: option.label,
+          recommended:
+            ageSuggestion?.suggestedDevelopment === option.value,
+          hint:
+            ageSuggestion?.suggestedDevelopment === option.value
+              ? 'Dikim yılına göre Pusula tahmini'
+              : undefined,
+        })),
+      };
+    };
 
-      const irrigationMethodQuestion = (): PusulaFieldQuestion => ({
-        id: `field:${fieldId}:irrigation-method`,
-        kind: 'choice',
-        prompt: `${fieldName} için hangi sulama yöntemi kullanılıyor?`,
-        helper:
-          'Yalnız yöntemi seç. Islanan yüzey oranını tek sayı uydurmak yerine FAO-56 referans aralığıyla modelleyeceğim.',
-        options: [
-          { value: 'trickle', label: 'Damlama' },
-          { value: 'sprinkler', label: 'Yağmurlama' },
-          { value: 'basin', label: 'Tava / göllendirme' },
-          { value: 'border', label: 'Şerit / salma' },
-          { value: 'furrow_every_narrow', label: 'Karık · her karık, dar yatak' },
-          { value: 'furrow_every_wide', label: 'Karık · her karık, geniş yatak' },
-          { value: 'furrow_alternating', label: 'Karık · dönüşümlü karık' },
-          { value: 'unknown', label: 'Bilmiyorum / emin değilim' },
-        ],
-      });
+    const canopyHeightQuestion = (): PusulaFieldQuestion => ({
+      id: `field:${fieldId}:canopy-height-class`,
+      kind: 'choice',
+      prompt:
+        `${fieldName} için ağaçların ortalama boyu hangisine daha yakın?`,
+      helper:
+        'Kesin ölçüm gerekmiyor. Bahçenin genelindeki ortalama ağacı düşün.',
+      options: CANOPY_HEIGHT_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+      })),
+    });
 
-      const needsIrrigationMethod =
-        context.irrigationStatus === 'irrigated' ||
-        context.irrigationStatus === 'partial';
+    /* Görevden gelindiyse yalnız o gerçek eksik alanı aç. */
+    if (preferredQuestion === 'irrigation-status') {
+      return !context.irrigationStatus
+        ? irrigationQuestion()
+        : null;
+    }
 
-      const needsYoungOrchardCanopy =
-        context.bearing === false &&
-        isTreeOrchardCanopyCrop(context.cropName);
+    if (preferredQuestion === 'irrigation-method') {
+      return needsIrrigationMethod && irrigationMethod === null
+        ? irrigationMethodQuestion()
+        : null;
+    }
 
-      const canopyDevelopmentQuestion =
-        (): PusulaFieldQuestion => {
-          const ageLead = ageSuggestion
-            ? `${fieldName} ${ageSuggestion.plantingYear}'de dikilmiş; yaklaşık ${ageSuggestion.age} yaşında. Yaşına ve ürününe bakınca “${ageSuggestion.suggestedLabel}” bana başlangıç için en yakın seçenek gibi geliyor.`
-            : `${fieldName} genç / ürün vermeyen bahçe olarak kayıtlı.`;
-
-          return {
-            id: `field:${fieldId}:canopy-development`,
-            kind: 'choice',
-            prompt:
-              `${ageLead} Ağaçların taç gelişimi gerçekte hangisine daha yakın?`,
-            helper:
-              'Ağacın dallı-yapraklı üst kısmını düşün. Bakım, sulama, budama, toprak ve dikim aralığı yaş tahmininden daha önemli olabilir; senin seçimin esas alınacak.',
-            options: CANOPY_DEVELOPMENT_OPTIONS.map((option) => ({
-              value: option.value,
-              label: option.label,
-              recommended:
-                ageSuggestion?.suggestedDevelopment === option.value,
-              hint:
-                ageSuggestion?.suggestedDevelopment === option.value
-                  ? 'Dikim yılına göre Pusula tahmini'
-                  : undefined,
-            })),
-          };
-        };
-
-      const canopyHeightQuestion =
-        (): PusulaFieldQuestion => ({
-          id: `field:${fieldId}:canopy-height-class`,
-          kind: 'choice',
-          prompt:
-            `${fieldName} için ağaçların ortalama boyu hangisine daha yakın?`,
-          helper:
-            'Kesin ölçüm gerekmiyor. Bahçenin genelindeki ortalama ağacı düşün.',
-          options: CANOPY_HEIGHT_OPTIONS.map((option) => ({
-            value: option.value,
-            label: option.label,
-          })),
-        });
-
-      if (preferredQuestion === 'irrigation-status') {
-        return !context.irrigationStatus
-          ? irrigationQuestion()
-          : null;
-      }
-
-      if (preferredQuestion === 'irrigation-method') {
-        return needsIrrigationMethod && irrigationMethod === null
-          ? irrigationMethodQuestion()
-          : null;
-      }
-
-      if (preferredQuestion === 'canopy-development') {
-        return (
-          needsYoungOrchardCanopy &&
-          context.canopyDevelopmentClass === null &&
-          context.canopyCoverPercent === null
-        )
-          ? canopyDevelopmentQuestion()
-          : null;
-      }
-
-      if (preferredQuestion === 'canopy-height') {
-        return (
-          needsYoungOrchardCanopy &&
-          context.canopyHeightClass === null &&
-          context.canopyHeightM === null
-        )
-          ? canopyHeightQuestion()
-          : null;
-      }
-
-      if (!context.irrigationStatus) {
-        return irrigationQuestion();
-      }
-
-      if (needsIrrigationMethod && irrigationMethod === null) {
-        return irrigationMethodQuestion();
-      }
-
-      if (!needsYoungOrchardCanopy) {
-        return null;
-      }
-
-      if (
+    if (preferredQuestion === 'canopy-development') {
+      return (
+        isOrchardCanopyCrop &&
         context.canopyDevelopmentClass === null &&
         context.canopyCoverPercent === null
-      ) {
-        return canopyDevelopmentQuestion();
-      }
+      )
+        ? canopyDevelopmentQuestion()
+        : null;
+    }
 
-      if (
+    if (preferredQuestion === 'canopy-height') {
+      return (
+        isOrchardCanopyCrop &&
         context.canopyHeightClass === null &&
         context.canopyHeightM === null
-      ) {
-        return canopyHeightQuestion();
+      )
+        ? canopyHeightQuestion()
+        : null;
+    }
+
+    /* Normal Pusula akışı sakin kalır; mature canopy soruları yalnız görevden açılır. */
+    if (!context.irrigationStatus) {
+      return irrigationQuestion();
+    }
+
+    if (needsIrrigationMethod && irrigationMethod === null) {
+      return irrigationMethodQuestion();
+    }
+
+    if (!needsYoungOrchardCanopy) {
+      return null;
+    }
+
+    if (
+      context.canopyDevelopmentClass === null &&
+      context.canopyCoverPercent === null
+    ) {
+      return canopyDevelopmentQuestion();
+    }
+
+    if (
+      context.canopyHeightClass === null &&
+      context.canopyHeightM === null
+    ) {
+      return canopyHeightQuestion();
+    }
+
+    return null;
+  }, [
+    fieldId,
+    field?.demo,
+    fieldName,
+    context,
+    contextState.fieldId,
+    contextState.checked,
+    contextState.loading,
+    irrigationMethod,
+    irrigationMethodState.fieldId,
+    irrigationMethodState.checked,
+    irrigationMethodState.loading,
+    ageSuggestion,
+    preferredQuestion,
+  ]);
+
+  const answerQuestion = useCallback(
+    async (value: PusulaFieldAnswer) => {
+      if (!fieldId || !question) {
+        throw new Error('Tarla sorusu artık geçerli değil.');
       }
 
-      return null;
-    }, [
-      fieldId,
-      field?.demo,
-      fieldName,
-      context,
-      contextState.fieldId,
-      contextState.checked,
-      contextState.loading,
-      irrigationMethod,
-      irrigationMethodState.fieldId,
-      irrigationMethodState.checked,
-      irrigationMethodState.loading,
-      ageSuggestion,
-      preferredQuestion,
-    ]);
-
-  const answerQuestion =
-    useCallback(
-      async (value: PusulaFieldAnswer) => {
-        if (!fieldId || !question) {
-          throw new Error(
-            'Tarla sorusu artık geçerli değil.',
-          );
-        }
-
+      if (question.id.endsWith(':irrigation-status')) {
         if (
-          question.id.endsWith(
-            ':irrigation-status',
-          )
+          value !== 'sulu' &&
+          value !== 'susuz' &&
+          value !== 'kısmi'
         ) {
-          if (
-            value !== 'sulu' &&
-            value !== 'susuz' &&
-            value !== 'kısmi'
-          ) {
-            throw new Error(
-              'Geçerli bir sulama durumu seç.',
-            );
-          }
-
-          await saveFieldIrrigationStatus({
-            fieldId,
-            irrigationStatus: value,
-          });
-          return;
+          throw new Error('Geçerli bir sulama durumu seç.');
         }
 
-        if (question.id.endsWith(':irrigation-method')) {
-          if (typeof value !== 'string' || !IRRIGATION_METHODS.has(value as FieldIrrigationMethod)) {
-            throw new Error('Geçerli bir sulama yöntemi seç.');
-          }
+        await saveFieldIrrigationStatus({
+          fieldId,
+          irrigationStatus: value,
+        });
+        return;
+      }
 
-          await saveFieldIrrigationMethod({
-            fieldId,
-            irrigationMethod: value as FieldIrrigationMethod,
-          });
-          setIrrigationMethodState((current) => ({
-            ...current,
-            fieldId,
-            checked: true,
-            loading: false,
-            value: value as FieldIrrigationMethod,
-            error: null,
-          }));
-          return;
-        }
-
+      if (question.id.endsWith(':irrigation-method')) {
         if (
-          question.id.endsWith(
-            ':canopy-development',
-          )
+          typeof value !== 'string' ||
+          !IRRIGATION_METHODS.has(value as FieldIrrigationMethod)
         ) {
-          if (typeof value !== 'string') {
-            throw new Error(
-              'Geçerli bir taç gelişimi seç.',
-            );
-          }
-
-          await saveFieldCanopyDevelopmentClass({
-            fieldId,
-            canopyDevelopmentClass:
-              value as
-                | 'very_small'
-                | 'small'
-                | 'medium'
-                | 'large'
-                | 'very_large',
-          });
-          return;
+          throw new Error('Geçerli bir sulama yöntemi seç.');
         }
 
-        if (
-          question.id.endsWith(
-            ':canopy-height-class',
-          )
-        ) {
-          if (typeof value !== 'string') {
-            throw new Error(
-              'Geçerli bir ağaç boyu seç.',
-            );
-          }
+        await saveFieldIrrigationMethod({
+          fieldId,
+          irrigationMethod: value as FieldIrrigationMethod,
+        });
+        setIrrigationMethodState((current) => ({
+          ...current,
+          fieldId,
+          checked: true,
+          loading: false,
+          value: value as FieldIrrigationMethod,
+          error: null,
+        }));
+        return;
+      }
 
-          await saveFieldCanopyHeightClass({
-            fieldId,
-            canopyHeightClass:
-              value as
-                | 'under_1m'
-                | '1_2m'
-                | '2_3m'
-                | '3_5m'
-                | 'over_5m',
-          });
-          return;
+      if (question.id.endsWith(':canopy-development')) {
+        if (typeof value !== 'string') {
+          throw new Error('Geçerli bir taç gelişimi seç.');
         }
 
-        throw new Error(
-          'Bu soru tipi henüz desteklenmiyor.',
-        );
-      },
-      [fieldId, question],
-    );
+        await saveFieldCanopyDevelopmentClass({
+          fieldId,
+          canopyDevelopmentClass:
+            value as
+              | 'very_small'
+              | 'small'
+              | 'medium'
+              | 'large'
+              | 'very_large',
+        });
+        return;
+      }
+
+      if (question.id.endsWith(':canopy-height-class')) {
+        if (typeof value !== 'string') {
+          throw new Error('Geçerli bir ağaç boyu seç.');
+        }
+
+        await saveFieldCanopyHeightClass({
+          fieldId,
+          canopyHeightClass:
+            value as
+              | 'under_1m'
+              | '1_2m'
+              | '2_3m'
+              | '3_5m'
+              | 'over_5m',
+        });
+        return;
+      }
+
+      throw new Error('Bu soru tipi henüz desteklenmiyor.');
+    },
+    [fieldId, question],
+  );
 
   return {
     question,
     answerQuestion,
-    irrigationStatus:
-      context?.irrigationStatus ?? null,
+    irrigationStatus: context?.irrigationStatus ?? null,
     irrigationMethod,
-    fieldCompletionContext:
-      context,
+    fieldCompletionContext: context,
     ageSuggestion,
     checking:
       (contextState.fieldId === fieldId && contextState.loading) ||
