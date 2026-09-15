@@ -10,6 +10,7 @@ const corsHeaders = {
 const REQUIRED = ['daily_weather', 'crop_parameters', 'soil_parameters', 'site_parameters', 'agromanagement'] as const;
 const ARCHIVE_LAG_DAYS = 5;
 const WEATHER_VALIDATION_DAYS = 7;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -28,12 +29,80 @@ function isoDateDaysAgo(days: number) {
   return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 }
 
+function validIsoDate(value: unknown) {
+  const text = String(value ?? '').trim();
+  return ISO_DATE.test(text) && Number.isFinite(Date.parse(`${text}T00:00:00Z`));
+}
+
 function resolveLocation(field: Record<string, unknown>) {
   const latitude = finite(field.parcel_centroid_lat ?? field.latitude);
   const longitude = finite(field.parcel_centroid_lng ?? field.longitude);
   if (latitude === null || longitude === null) return null;
   if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
   return { latitude, longitude };
+}
+
+function deriveAgromanagement(season: any) {
+  const plantingDate = String(season?.planting_date ?? '').trim();
+  const harvestDate = String(season?.harvest_date ?? '').trim();
+  const crop = String(season?.crop ?? '').trim();
+
+  if (!season?.id || !crop || !validIsoDate(plantingDate)) {
+    return {
+      available: false,
+      source: 'field_seasons',
+      sourceReference: season?.id ? `field_seasons:${season.id}` : null,
+      parameters: null,
+      detail: 'PCSE agromanagement için gerçek sezon, ürün ve ekim tarihi gerekli.',
+    };
+  }
+
+  if (!validIsoDate(harvestDate)) {
+    return {
+      available: false,
+      source: 'field_seasons',
+      sourceReference: `field_seasons:${season.id}`,
+      parameters: {
+        campaign_start_date: plantingDate,
+        crop_calendar: {
+          crop_name: crop,
+          crop_start_date: plantingDate,
+          crop_start_type: 'sowing',
+          crop_end_date: null,
+          crop_end_type: 'harvest',
+        },
+      },
+      detail: 'Ekim tarihi var; gerçek/planlanan hasat tarihi olmadığı için agromanagement tamamlanmış sayılmıyor.',
+    };
+  }
+
+  if (Date.parse(`${harvestDate}T00:00:00Z`) < Date.parse(`${plantingDate}T00:00:00Z`)) {
+    return {
+      available: false,
+      source: 'field_seasons',
+      sourceReference: `field_seasons:${season.id}`,
+      parameters: null,
+      detail: 'Hasat tarihi ekim tarihinden önce olamaz.',
+    };
+  }
+
+  return {
+    available: true,
+    source: 'field_seasons',
+    sourceReference: `field_seasons:${season.id}`,
+    verifiedAt: season.created_at ?? null,
+    parameters: {
+      campaign_start_date: plantingDate,
+      crop_calendar: {
+        crop_name: crop,
+        crop_start_date: plantingDate,
+        crop_start_type: 'sowing',
+        crop_end_date: harvestDate,
+        crop_end_type: 'harvest',
+      },
+    },
+    detail: 'Agromanagement gerçek TarlaPusula sezon kaydındaki ekim ve hasat tarihinden üretildi.',
+  };
 }
 
 async function authenticatedClients(req: Request) {
@@ -108,19 +177,70 @@ Deno.serve(async (req) => {
     ]);
     if (seasonResult.error) throw seasonResult.error;
     if (paramsResult.error) throw paramsResult.error;
+
     const records = Array.isArray(paramsResult.data) ? paramsResult.data : [];
     const byKind = new Map(records.map((row: any) => [String(row.parameter_kind), row]));
     const availableInputs: string[] = [];
     if (weather.available) availableInputs.push('daily_weather');
+
     const adapters: Record<string, unknown> = { daily_weather: weather };
+    const derivedAgromanagement = deriveAgromanagement(seasonResult.data);
+
     for (const kind of ['crop_parameters', 'soil_parameters', 'site_parameters', 'agromanagement']) {
       const row = byKind.get(kind) as any;
       const validObject = row?.parameters && typeof row.parameters === 'object' && !Array.isArray(row.parameters) && Object.keys(row.parameters).length > 0;
-      if (validObject) availableInputs.push(kind);
-      adapters[kind] = validObject ? { available: true, source: row.source, sourceReference: row.source_reference ?? null, verifiedAt: row.verified_at, parameters: row.parameters } : { available: false, source: null, parameters: null, detail: `${kind} için doğrulanmış gerçek PCSE parametre kaydı yok.` };
+
+      if (validObject) {
+        availableInputs.push(kind);
+        adapters[kind] = {
+          available: true,
+          source: row.source,
+          sourceReference: row.source_reference ?? null,
+          verifiedAt: row.verified_at,
+          parameters: row.parameters,
+        };
+        continue;
+      }
+
+      if (kind === 'agromanagement') {
+        if (derivedAgromanagement.available) availableInputs.push('agromanagement');
+        adapters.agromanagement = derivedAgromanagement;
+        continue;
+      }
+
+      adapters[kind] = {
+        available: false,
+        source: null,
+        parameters: null,
+        detail: `${kind} için doğrulanmış gerçek PCSE parametre kaydı yok.`,
+      };
     }
+
     const missingInputs = REQUIRED.filter((key) => !availableInputs.includes(key));
-    return json({ ok: true, engine: 'pcse', mode: 'pilot-input-adapter', field_id: fieldId, rollout: 'pilot', production_authority: false, input_authority: 'server-derived', client_supplied_agricultural_values_accepted: false, ready: missingInputs.length === 0, available_inputs: availableInputs, missing_inputs: missingInputs, adapters, context: { crop_identity: seasonResult.data?.crop ?? field.crop ?? null, planting_date: seasonResult.data?.planting_date ?? null, harvest_date: seasonResult.data?.harvest_date ?? null, season_year: seasonResult.data?.year ?? field.season ?? null }, note: missingInputs.length === 0 ? 'PCSE/WOFOST pilot girdileri doğrulanmış server-side kaynaklarla hazır.' : 'Eksik PCSE/WOFOST girdileri için sentetik değer üretilmedi; pilot bloklu kalır.' });
+    return json({
+      ok: true,
+      engine: 'pcse',
+      mode: 'pilot-input-adapter',
+      field_id: fieldId,
+      rollout: 'pilot',
+      production_authority: false,
+      input_authority: 'server-derived',
+      client_supplied_agricultural_values_accepted: false,
+      ready: missingInputs.length === 0,
+      available_inputs: availableInputs,
+      missing_inputs: missingInputs,
+      adapters,
+      context: {
+        season_id: seasonResult.data?.id ?? null,
+        crop_identity: seasonResult.data?.crop ?? field.crop ?? null,
+        planting_date: seasonResult.data?.planting_date ?? null,
+        harvest_date: seasonResult.data?.harvest_date ?? null,
+        season_year: seasonResult.data?.year ?? field.season ?? null,
+      },
+      note: missingInputs.length === 0
+        ? 'PCSE/WOFOST pilot girdileri doğrulanmış server-side kaynaklarla hazır.'
+        : 'Eksik PCSE/WOFOST girdileri için sentetik değer üretilmedi; pilot bloklu kalır.',
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'PCSE pilot input hazırlığı başarısız oldu.';
     console.error('[pcse-pilot-inputs]', message);
