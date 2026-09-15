@@ -47,51 +47,6 @@ import type {
   Field,
 } from './types';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export default function App() {
   const { isNewUserPreview } = useEntitlementStore();
   const [screen, setScreen] = useState<Screen>('welcome');
@@ -150,17 +105,13 @@ export default function App() {
     }
   });
 
-  // Geliştirici test anahtarındaki YENİ KULLANICI modu yalnızca önizlemedir.
-  // Gerçek profil/veri değişmeden mevcut yeni kullanıcı onboarding ekranı açılır.
   const newUserPreviewWasActiveRef = useRef(false);
   const newUserPreviewReturnScreenRef = useRef<Screen>('home');
 
   useEffect(() => {
     if (isNewUserPreview) {
       if (newUserPreviewWasActiveRef.current) return;
-
       newUserPreviewWasActiveRef.current = true;
-
       const nonAppScreens = [
         'welcome',
         'login',
@@ -170,11 +121,9 @@ export default function App() {
         'onboarding',
         'ready',
       ];
-
       newUserPreviewReturnScreenRef.current = nonAppScreens.includes(String(screen))
         ? 'home'
         : screen;
-
       setPusulaIntroOpen(false);
       setOnboardingStep(0);
       setAnswers({});
@@ -183,15 +132,12 @@ export default function App() {
       setScreen('onboarding');
       return;
     }
-
     if (!newUserPreviewWasActiveRef.current) return;
-
     newUserPreviewWasActiveRef.current = false;
     setPusulaIntroOpen(false);
     setScreen(newUserPreviewReturnScreenRef.current ?? 'home');
   }, [isNewUserPreview]);
-  // Merkezi puan motorunu bir kez başlat.
-  // Oturum varsa günlük giriş ödülünü de server-side limit kontrolüyle dener.
+
   useEffect(() => {
     return startGamificationSession();
   }, []);
@@ -441,27 +387,32 @@ export default function App() {
   });
 
   const [fieldFabOpen, setFieldFabOpen] = useState(false);
+  const [fieldDetailEntry, setFieldDetailEntry] = useState<{
+    fieldId: string;
+    actionTarget: string | null;
+    nonce: number;
+  } | null>(null);
 
   const statusInfo = {
-    good: {
-      label: 'İyi',
-      color: '#2f7d32',
-      bg: '#edf7ed',
-    },
-    check: {
-      label: 'Kontrol Et',
-      color: '#d58b00',
-      bg: '#fff7df',
-    },
-    urgent: {
-      label: 'İlgilen',
-      color: '#d8453a',
-      bg: '#fff0ee',
-    },
+    good: { label: 'İyi', color: '#2f7d32', bg: '#edf7ed' },
+    check: { label: 'Kontrol Et', color: '#d58b00', bg: '#fff7df' },
+    urgent: { label: 'İlgilen', color: '#d8453a', bg: '#fff0ee' },
   };
 
-  const openFieldDetail = (field: Field) => {
+  const openFieldDetail = (
+    field: Field,
+    entry: { actionTarget?: string | null } = {},
+  ) => {
     setFieldFabOpen(false);
+    setFieldDetailEntry(
+      entry.actionTarget
+        ? {
+            fieldId: String(field.id),
+            actionTarget: String(entry.actionTarget),
+            nonce: Date.now(),
+          }
+        : null,
+    );
     setSelectedField(field);
     resetSectionsUi();
     resetProductionUi();
@@ -481,9 +432,7 @@ export default function App() {
   }, [screen, selectedField?.id]);
 
   const openSoilAnalysisForField = (field?: Field | null) => {
-    if (field) {
-      setSoilFieldId(String(field.id));
-    }
+    if (field) setSoilFieldId(String(field.id));
     setScreen('soilAnalysisHub');
   };
 
@@ -491,21 +440,14 @@ export default function App() {
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('pusulaTest') === '1';
 
-  if (pusulaTestMode) {
-    return <PusulaTest />;
-  }
-
+  if (pusulaTestMode) return <PusulaTest />;
 
   if (pusulaIntroOpen) {
     const clearPreviewSeenFlag = () => {
       if (!isNewUserPreview || typeof window === 'undefined') return;
-
-      // Önizleme gerçek kullanıcının "fragmanı gördü" kaydını kirletmesin.
       try {
         window.localStorage.removeItem('tp_pusula_intro_seen_v1');
-      } catch {
-        // localStorage kapalıysa önizleme yine çalışır.
-      }
+      } catch {}
     };
 
     return (
@@ -519,17 +461,13 @@ export default function App() {
         onStartFirstField={() => {
           setPusulaIntroOpen(false);
           clearPreviewSeenFlag();
-
           if (isNewUserPreview) {
-            // Test hesabındaki gerçek tarlalar alan limitini tetiklemesin.
-            // Form açılır; aşağıdaki handleAddField koruması gerçek kayıt yapılmasını engeller.
             resetFieldForm();
             setFieldFormMessage('');
             setScreen('addField');
             if (provinceOptions.length === 0) void loadProvinceOptions();
             return;
           }
-
           openAddField();
         }}
       />
@@ -537,335 +475,58 @@ export default function App() {
   }
 
   if (screen === 'calendar') {
-    return (
-      <CalendarScreen
-        cmsRuntimeCss={cmsRuntimeCss}
-        cmsPageFor={cmsPageFor}
-        cmsBlockFor={cmsBlockFor}
-        cmsMenuFor={cmsMenuFor}
-        cmsText={cmsText}
-        cmsSub={cmsSub}
-        cmsBlockStyle={cmsBlockStyle}
-        calendarReminders={calendarReminders}
-        calendarLoading={calendarLoading}
-        pushEnabled={pushEnabled}
-        pushSupported={pushSupported}
-        pushMessage={pushMessage}
-        pushLoading={pushLoading}
-        reminderMessage={reminderMessage}
-        reminderFormOpen={reminderFormOpen}
-        reminderFieldId={reminderFieldId}
-        reminderType={reminderType}
-        reminderTitle={reminderTitle}
-        reminderDate={reminderDate}
-        reminderTime={reminderTime}
-        reminderNotes={reminderNotes}
-        reminderFormLoading={reminderFormLoading}
-        realFields={realFields}
-        setScreen={setScreen}
-        setReminderFormOpen={setReminderFormOpen}
-        setReminderMessage={setReminderMessage}
-        setReminderFieldId={setReminderFieldId}
-        setReminderType={setReminderType}
-        setReminderTitle={setReminderTitle}
-        setReminderDate={setReminderDate}
-        setReminderTime={setReminderTime}
-        setReminderNotes={setReminderNotes}
-        openReminderModal={openReminderModal}
-        handleAddReminder={handleAddReminder}
-        handleToggleReminder={handleToggleReminder}
-        handleDeleteReminder={handleDeleteReminder}
-        enablePushNotifications={enablePushNotifications}
-        disablePushNotifications={disablePushNotifications}
-        sendTestPushNotification={sendTestPushNotification}
-        openAiAnalysisScreen={openAiAnalysisScreen}
-      />
-    );
+    return <CalendarScreen cmsRuntimeCss={cmsRuntimeCss} cmsPageFor={cmsPageFor} cmsBlockFor={cmsBlockFor} cmsMenuFor={cmsMenuFor} cmsText={cmsText} cmsSub={cmsSub} cmsBlockStyle={cmsBlockStyle} calendarReminders={calendarReminders} calendarLoading={calendarLoading} pushEnabled={pushEnabled} pushSupported={pushSupported} pushMessage={pushMessage} pushLoading={pushLoading} reminderMessage={reminderMessage} reminderFormOpen={reminderFormOpen} reminderFieldId={reminderFieldId} reminderType={reminderType} reminderTitle={reminderTitle} reminderDate={reminderDate} reminderTime={reminderTime} reminderNotes={reminderNotes} reminderFormLoading={reminderFormLoading} realFields={realFields} setScreen={setScreen} setReminderFormOpen={setReminderFormOpen} setReminderMessage={setReminderMessage} setReminderFieldId={setReminderFieldId} setReminderType={setReminderType} setReminderTitle={setReminderTitle} setReminderDate={setReminderDate} setReminderTime={setReminderTime} setReminderNotes={setReminderNotes} openReminderModal={openReminderModal} handleAddReminder={handleAddReminder} handleToggleReminder={handleToggleReminder} handleDeleteReminder={handleDeleteReminder} enablePushNotifications={enablePushNotifications} disablePushNotifications={disablePushNotifications} sendTestPushNotification={sendTestPushNotification} openAiAnalysisScreen={openAiAnalysisScreen} />;
   }
 
   if (screen === 'aiAnalysis') {
-    return (
-      <AiAnalysisScreen
-        cmsRuntimeCss={cmsRuntimeCss}
-        cmsPageFor={cmsPageFor}
-        cmsBlockFor={cmsBlockFor}
-        cmsText={cmsText}
-        cmsSub={cmsSub}
-        aiAccessStatus={aiAccessStatus}
-        aiAccessLoading={aiAccessLoading}
-        realFields={realFields}
-        fieldWeather={fieldWeather}
-        loadFieldWeather={loadFieldWeather}
-        unifiedClimateContext={unifiedClimateContext}
-        selectedField={selectedField}
-        setSelectedField={setSelectedField}
-        activityPhotoPreview={activityPhotoPreview}
-        activityPhoto={activityPhoto}
-        activityNotes={activityNotes}
-        setActivityNotes={setActivityNotes}
-        aiAnalyzing={aiAnalyzing}
-        aiAnalysisError={aiAnalysisError}
-        aiAnalysis={aiAnalysis}
-        activityFormLoading={activityFormLoading}
-        setScreen={setScreen}
-        clearActivityPhoto={clearActivityPhoto}
-        handleActivityPhotoChange={handleActivityPhotoChange}
-        handleAiAnalyzeActivityPhoto={handleAiAnalyzeActivityPhoto}
-        handleAddActivity={handleAddActivity}
-        openAddField={openAddField}
-        openCalendarScreen={openCalendarScreen}
-      />
-    );
+    return <AiAnalysisScreen cmsRuntimeCss={cmsRuntimeCss} cmsPageFor={cmsPageFor} cmsBlockFor={cmsBlockFor} cmsText={cmsText} cmsSub={cmsSub} aiAccessStatus={aiAccessStatus} aiAccessLoading={aiAccessLoading} realFields={realFields} fieldWeather={fieldWeather} loadFieldWeather={loadFieldWeather} unifiedClimateContext={unifiedClimateContext} selectedField={selectedField} setSelectedField={setSelectedField} activityPhotoPreview={activityPhotoPreview} activityPhoto={activityPhoto} activityNotes={activityNotes} setActivityNotes={setActivityNotes} aiAnalyzing={aiAnalyzing} aiAnalysisError={aiAnalysisError} aiAnalysis={aiAnalysis} activityFormLoading={activityFormLoading} setScreen={setScreen} clearActivityPhoto={clearActivityPhoto} handleActivityPhotoChange={handleActivityPhotoChange} handleAiAnalyzeActivityPhoto={handleAiAnalyzeActivityPhoto} handleAddActivity={handleAddActivity} openAddField={openAddField} openCalendarScreen={openCalendarScreen} />;
   }
 
-  if (
-    screen === 'welcome' ||
-    screen === 'login' ||
-    screen === 'emailRegister' ||
-    screen === 'emailLogin' ||
-    screen === 'emailVerification'
-  ) {
-    return (
-      <AuthScreens
-        screen={screen}
-        setScreen={setScreen}
-        cmsRuntimeCss={cmsRuntimeCss}
-        email={email}
-        setEmail={setEmail}
-        username={username}
-        setUsername={setUsername}
-        password={password}
-        setPassword={setPassword}
-        authLoading={authLoading}
-        authMessage={authMessage}
-        setAuthMessage={setAuthMessage}
-        verificationEmail={verificationEmail}
-        handleEmailRegister={handleEmailRegister}
-        handleEmailLogin={handleEmailLogin}
-      />
-    );
+  if (['welcome', 'login', 'emailRegister', 'emailLogin', 'emailVerification'].includes(String(screen))) {
+    return <AuthScreens screen={screen} setScreen={setScreen} cmsRuntimeCss={cmsRuntimeCss} email={email} setEmail={setEmail} username={username} setUsername={setUsername} password={password} setPassword={setPassword} authLoading={authLoading} authMessage={authMessage} setAuthMessage={setAuthMessage} verificationEmail={verificationEmail} handleEmailRegister={handleEmailRegister} handleEmailLogin={handleEmailLogin} />;
   }
 
   if (screen === 'onboarding') {
-    return (
-      <OnboardingScreen
-        cmsRuntimeCss={cmsRuntimeCss}
-        onboardingStep={onboardingStep}
-        answers={answers}
-        otherProduct={otherProduct}
-        authMessage={authMessage}
-        authLoading={authLoading}
-        onOtherProductChange={setOtherProduct}
-        onBack={() => {
-          if (onboardingStep === 0) {
-            if (isNewUserPreview) return;
-            setScreen('login');
-          } else {
-            setOnboardingStep(onboardingStep - 1);
-          }
-        }}
-        onSelectAnswer={selectAnswer}
-        onSkip={skipOnboardingStep}
-        onNext={nextOnboardingStep}
-      />
-    );
+    return <OnboardingScreen cmsRuntimeCss={cmsRuntimeCss} onboardingStep={onboardingStep} answers={answers} otherProduct={otherProduct} authMessage={authMessage} authLoading={authLoading} onOtherProductChange={setOtherProduct} onBack={() => onboardingStep === 0 ? (!isNewUserPreview && setScreen('login')) : setOnboardingStep(onboardingStep - 1)} onSelectAnswer={selectAnswer} onSkip={skipOnboardingStep} onNext={nextOnboardingStep} />;
   }
 
   if (screen === 'addField') {
-    return (
-      <AddFieldScreen
-        cmsRuntimeCss={cmsRuntimeCss}
-        setScreen={setScreen}
-        fieldName={fieldName}
-        setFieldName={setFieldName}
-        selectedProvinceId={selectedProvinceId}
-        selectedDistrictId={selectedDistrictId}
-        provinceOptions={provinceOptions}
-        districtOptions={districtOptions}
-        villageOptions={villageOptions}
-        fieldVillage={fieldVillage}
-        locationOptionsLoading={locationOptionsLoading}
-        locationOptionsMessage={locationOptionsMessage}
-        fieldAda={fieldAda}
-        setFieldAda={setFieldAda}
-        fieldParcel={fieldParcel}
-        setFieldParcel={setFieldParcel}
-        parcelLookupLoading={parcelLookupLoading}
-        parcelLookupMessage={parcelLookupMessage}
-        parcelGeometry={parcelGeometry}
-        parcelLookupSource={parcelLookupSource}
-        parcelLocationMessage={parcelLocationMessage}
-        fieldLatitude={fieldLatitude}
-        fieldLongitude={fieldLongitude}
-        fieldArea={fieldArea}
-        setFieldArea={setFieldArea}
-        fieldSeason={fieldSeason}
-        setFieldSeason={setFieldSeason}
-        fieldCrop={fieldCrop}
-        fieldCropCycle={fieldCropCycle}
-        fieldPlantingYear={fieldPlantingYear}
-        setFieldPlantingYear={setFieldPlantingYear}
-        fieldBearing={fieldBearing}
-        setFieldBearing={setFieldBearing}
-        fieldFormMessage={fieldFormMessage}
-        fieldFormLoading={fieldFormLoading}
-        getDistrictDisplayName={districtDisplayName}
-        handleProvinceSelection={handleProvinceSelection}
-        handleDistrictSelection={handleDistrictSelection}
-        handleVillageSelection={handleVillageSelection}
-        handleParcelLookup={handleParcelLookup}
-        openOfficialParcelQuery={openOfficialParcelQuery}
-        handleFieldCropSelection={handleFieldCropSelection}
-        handleAddField={handleAddField}
-      />
-    );
+    return <AddFieldScreen cmsRuntimeCss={cmsRuntimeCss} setScreen={setScreen} fieldName={fieldName} setFieldName={setFieldName} selectedProvinceId={selectedProvinceId} selectedDistrictId={selectedDistrictId} provinceOptions={provinceOptions} districtOptions={districtOptions} villageOptions={villageOptions} fieldVillage={fieldVillage} locationOptionsLoading={locationOptionsLoading} locationOptionsMessage={locationOptionsMessage} fieldAda={fieldAda} setFieldAda={setFieldAda} fieldParcel={fieldParcel} setFieldParcel={setFieldParcel} parcelLookupLoading={parcelLookupLoading} parcelLookupMessage={parcelLookupMessage} parcelGeometry={parcelGeometry} parcelLookupSource={parcelLookupSource} parcelLocationMessage={parcelLocationMessage} fieldLatitude={fieldLatitude} fieldLongitude={fieldLongitude} fieldArea={fieldArea} setFieldArea={setFieldArea} fieldSeason={fieldSeason} setFieldSeason={setFieldSeason} fieldCrop={fieldCrop} fieldCropCycle={fieldCropCycle} fieldPlantingYear={fieldPlantingYear} setFieldPlantingYear={setFieldPlantingYear} fieldBearing={fieldBearing} setFieldBearing={setFieldBearing} fieldFormMessage={fieldFormMessage} fieldFormLoading={fieldFormLoading} getDistrictDisplayName={districtDisplayName} handleProvinceSelection={handleProvinceSelection} handleDistrictSelection={handleDistrictSelection} handleVillageSelection={handleVillageSelection} handleParcelLookup={handleParcelLookup} openOfficialParcelQuery={openOfficialParcelQuery} handleFieldCropSelection={handleFieldCropSelection} handleAddField={handleAddField} />;
   }
 
   if (screen === 'ready') {
-    return (
-      <ReadyScreen
-        cmsRuntimeCss={cmsRuntimeCss}
-        onContinue={() => {
-          setScreen('home');
-
-          // Geliştirici YENİ KULLANICI önizlemesinde gerçek hesapta tarla olsa bile
-          // fragmanı 0 tarlalı yeni kullanıcı gibi zorla göster.
-          if (isNewUserPreview) {
-            window.setTimeout(() => setPusulaIntroOpen(true), 260);
-          }
-        }}
-      />
-    );
+    return <ReadyScreen cmsRuntimeCss={cmsRuntimeCss} onContinue={() => { setScreen('home'); if (isNewUserPreview) window.setTimeout(() => setPusulaIntroOpen(true), 260); }} />;
   }
 
   if (screen === 'fieldDetail' && selectedField) {
-    return (
-      <FieldDetailScreen
-        {...{
-          activities,
-          activitiesLoading,
-          activityCost,
-          activityDate,
-          activityDoseMode,
-          activityDurationHours,
-          activityFormLoading,
-          activityFormOpen,
-          activityMessage,
-          activityNotes,
-          activityPhoto,
-          activityPhotoPreview,
-          activityProductName,
-          activityQuantity,
-          activityType,
-          activityUnit,
-          activityWaterM3,
-          aiAnalysis,
-          aiAnalysisError,
-          aiAnalyzing,
-          annualCrop,
-          annualFormLoading,
-          annualFormOpen,
-          annualHarvestDate,
-          annualNotes,
-          annualPlantingDate,
-          annualSeasons,
-          annualYear,
-          clearActivityPhoto,
-          cmsRuntimeCss,
-          detailBearing,
-          detailCropCycle,
-          detailPlantingYear,
-          fieldFabOpen,
-          fieldSections,
-          handleActivityPhotoChange,
-          handleAddActivity,
-          handleAddAnnualSeason,
-          handleAddFieldSection,
-          handleAddPerennialYield,
-          handleAiAnalyzeActivityPhoto,
-          handleDeleteActivity,
-          handleDeleteField,
-          handleDeleteAnnualSeason,
-          handleDeleteFieldSection,
-          handleDeletePerennialYield,
-          handleSaveProductionProfile,
-          historyLoading,
-          historyMessage,
-          openActivityForm,
-          openAiAnalysisScreen,
-          openReminderModal,
-          openSoilAnalysisForField,
-          perennialYields,
-          productionProfileLoading,
-          productionProfileMessage,
-          productionProfileOpen,
-          resetAnnualForm,
-          resetSectionForm,
-          resetYieldForm,
-          sectionArea,
-          sectionCrop,
-          sectionFormLoading,
-          sectionFormMessage,
-          sectionFormOpen,
-          sectionName,
-          sectionsLoading,
-          selectedField,
-          setActivityCost,
-          setActivityDate,
-          setActivityDoseMode,
-          setActivityDurationHours,
-          setActivityFormOpen,
-          setActivityMessage,
-          setActivityNotes,
-          setActivityProductName,
-          setActivityQuantity,
-          setActivityType,
-          setActivityUnit,
-          setActivityWaterM3,
-          setAnnualCrop,
-          setAnnualFormOpen,
-          setAnnualHarvestDate,
-          setAnnualNotes,
-          setAnnualPlantingDate,
-          setAnnualYear,
-          setDetailBearing,
-          setDetailCropCycle,
-          setDetailPlantingYear,
-          setFieldFabOpen,
-          setProductionProfileMessage,
-          setProductionProfileOpen,
-          setScreen,
-          setSectionArea,
-          setSectionCrop,
-          setSectionFormMessage,
-          setSectionFormOpen,
-          setSectionName,
-          setYieldFormOpen,
-          setYieldHarvestDate,
-          setYieldKg,
-          setYieldNotes,
-          setYieldYear,
-          statusInfo,
-          yieldFormLoading,
-          yieldFormOpen,
-          yieldHarvestDate,
-          yieldKg,
-          yieldNotes,
-          yieldYear
-        }}
-      />
-    );
+    return <FieldDetailScreen {...{
+      activities, activitiesLoading, activityCost, activityDate, activityDoseMode, activityDurationHours,
+      activityFormLoading, activityFormOpen, activityMessage, activityNotes, activityPhoto, activityPhotoPreview,
+      activityProductName, activityQuantity, activityType, activityUnit, activityWaterM3, aiAnalysis, aiAnalysisError,
+      aiAnalyzing, annualCrop, annualFormLoading, annualFormOpen, annualHarvestDate, annualNotes, annualPlantingDate,
+      annualSeasons, annualYear, clearActivityPhoto, cmsRuntimeCss, detailBearing, detailCropCycle, detailPlantingYear,
+      fieldDetailEntry, fieldFabOpen, fieldSections, handleActivityPhotoChange, handleAddActivity, handleAddAnnualSeason,
+      handleAddFieldSection, handleAddPerennialYield, handleAiAnalyzeActivityPhoto, handleDeleteActivity, handleDeleteField,
+      handleDeleteAnnualSeason, handleDeleteFieldSection, handleDeletePerennialYield, handleSaveProductionProfile,
+      historyLoading, historyMessage, openActivityForm, openAiAnalysisScreen, openReminderModal, openSoilAnalysisForField,
+      perennialYields, productionProfileLoading, productionProfileMessage, productionProfileOpen, resetAnnualForm,
+      resetSectionForm, resetYieldForm, sectionArea, sectionCrop, sectionFormLoading, sectionFormMessage, sectionFormOpen,
+      sectionName, sectionsLoading, selectedField, setActivityCost, setActivityDate, setActivityDoseMode,
+      setActivityDurationHours, setActivityFormOpen, setActivityMessage, setActivityNotes, setActivityProductName,
+      setActivityQuantity, setActivityType, setActivityUnit, setActivityWaterM3, setAnnualCrop, setAnnualFormOpen,
+      setAnnualHarvestDate, setAnnualNotes, setAnnualPlantingDate, setAnnualYear, setDetailBearing, setDetailCropCycle,
+      setDetailPlantingYear, setFieldFabOpen, setProductionProfileMessage, setProductionProfileOpen, setScreen,
+      setSectionArea, setSectionCrop, setSectionFormMessage, setSectionFormOpen, setSectionName, setYieldFormOpen,
+      setYieldHarvestDate, setYieldKg, setYieldNotes, setYieldYear, statusInfo, yieldFormLoading, yieldFormOpen,
+      yieldHarvestDate, yieldKg, yieldNotes, yieldYear,
+    }} />;
   }
 
   const cmsDesktopMenuItems = cmsMenus.filter(item=>item.is_visible && item.show_desktop && (!item.admin_only || isAdmin)).sort((a,b)=>a.position-b.position).map(item=>({screen:((item.page_key || 'home') as Screen),icon:item.icon || '•',label:item.label,badge:item.badge_text || undefined}));
   const desktopMenuItems: Array<{ screen: Screen; icon: string; label: string; badge?: string }> = [
     ...(cmsDesktopMenuItems.length ? cmsDesktopMenuItems : FALLBACK_DESKTOP_MENU_ITEMS),
     ...(isAdmin && !(cmsDesktopMenuItems.length && cmsDesktopMenuItems.some(item=>item.screen==='adminHub')) ? [{screen:'adminHub' as Screen,icon:'◆',label:'Yönetim',badge:'ADMIN'}] : []),
-  ].map((item) =>
-    String(item.screen) === 'supportHub'
-      ? { ...item, label: 'Tarım Gündemi' }
-      : item,
-  );
+  ].map((item) => String(item.screen) === 'supportHub' ? { ...item, label: 'Tarım Gündemi' } : item);
 
   const placeholderMeta = { ...BASE_PLACEHOLDER_META };
   (Object.keys(BASE_PLACEHOLDER_META) as Screen[]).forEach((pageScreen)=>{
@@ -874,342 +535,34 @@ export default function App() {
     const cmsCards=cmsBlocks.filter(item=>item.page_key===pageScreen && item.is_visible).sort((a,b)=>a.position-b.position).map(item=>item.title || item.block_key);
     placeholderMeta[pageScreen]={title:page.title || base.title,subtitle:page.subtitle || base.subtitle,icon:page.icon || base.icon,cards:cmsCards.length?cmsCards:base.cards};
   });
-    if (unifiedMapOpen) {
-    return (
-      <UnifiedMapScreen
-        fields={realFields}
-        selectedFieldId={
-          mapFieldId ||
-          soilFieldId ||
-          weatherHubFieldId ||
-          favoriteFieldId ||
-          String(realFields[0]?.id ?? '')
-        }
-        initialSection={unifiedMapSection}
-        onFieldChange={(id) => {
-          setMapFieldId(id);
-          setSoilFieldId(id);
-          setWeatherHubFieldId(id);
-          setFieldControlFieldId(id);
-        }}
-        onBack={() => setUnifiedMapOpen(false)}
-      />
-    );
-  }
 
-    if (sentinel1MapOpen) {
-    return (
-      <UnifiedMapScreen
-        fields={realFields}
-        selectedFieldId={mapFieldId || soilFieldId || favoriteFieldId || String(realFields[0]?.id ?? '')}
-        initialSection="radar"
-        onFieldChange={(id) => { setMapFieldId(id); setSoilFieldId(id); }}
-        onBack={() => setSentinel1MapOpen(false)}
-      />
-    );
-  }
+  if (unifiedMapOpen) return <UnifiedMapScreen fields={realFields} selectedFieldId={mapFieldId || soilFieldId || weatherHubFieldId || favoriteFieldId || String(realFields[0]?.id ?? '')} initialSection={unifiedMapSection} onFieldChange={(id) => { setMapFieldId(id); setSoilFieldId(id); setWeatherHubFieldId(id); setFieldControlFieldId(id); }} onBack={() => setUnifiedMapOpen(false)} />;
+  if (sentinel1MapOpen) return <UnifiedMapScreen fields={realFields} selectedFieldId={mapFieldId || soilFieldId || favoriteFieldId || String(realFields[0]?.id ?? '')} initialSection="radar" onFieldChange={(id) => { setMapFieldId(id); setSoilFieldId(id); }} onBack={() => setSentinel1MapOpen(false)} />;
+  if (demMapOpen) return <DemMapScreen fields={realFields} selectedFieldId={mapFieldId || soilFieldId || favoriteFieldId || String(realFields[0]?.id ?? '')} onFieldChange={(id) => { setMapFieldId(id); setSoilFieldId(id); }} onBack={() => setDemMapOpen(false)} />;
+  if (era5MapOpen) return <UnifiedMapScreen fields={realFields} selectedFieldId={mapFieldId || weatherHubFieldId || favoriteFieldId || String(realFields[0]?.id ?? '')} initialSection="climate" onFieldChange={(id) => { setMapFieldId(id); setWeatherHubFieldId(id); }} onBack={() => setEra5MapOpen(false)} />;
 
-    if (demMapOpen) {
-    return (
-      <DemMapScreen
-        fields={realFields}
-        selectedFieldId={
-          mapFieldId ||
-          soilFieldId ||
-          favoriteFieldId ||
-          String(realFields[0]?.id ?? '')
-        }
-        onFieldChange={(id) => {
-          setMapFieldId(id);
-          setSoilFieldId(id);
-        }}
-        onBack={() => setDemMapOpen(false)}
-      />
-    );
-  }
-
-    if (era5MapOpen) {
-    return (
-      <UnifiedMapScreen
-        fields={realFields}
-        selectedFieldId={mapFieldId || weatherHubFieldId || favoriteFieldId || String(realFields[0]?.id ?? '')}
-        initialSection="climate"
-        onFieldChange={(id) => { setMapFieldId(id); setWeatherHubFieldId(id); }}
-        onBack={() => setEra5MapOpen(false)}
-      />
-    );
-  }
-
-
-  const withGlobalDrawer = (
-    content: ReactNode,
-    showGlobalBand = true,
-  ) => (
+  const withGlobalDrawer = (content: ReactNode, showGlobalBand = true) => (
     <>
-      <AppDrawer
-        open={sideMenuOpen}
-        activeScreen={screen}
-        onClose={() => setSideMenuOpen(false)}
-        onNavigate={(target, label) => {
-          setSideMenuOpen(false);
-
-          if (label === 'Tarlalarım') {
-            setScreen('home');
-            window.setTimeout(() => {
-              document
-                .querySelector('.tp-home-field')
-                ?.scrollIntoView({ behavior: 'smooth' });
-            }, 80);
-            return;
-          }
-
-          setScreen(target as Screen);
-        }}
-      />
-      {showGlobalBand && screen !== 'home' && (
-        <GlobalPusulaBand
-          screen={String(screen)}
-          title={
-            desktopMenuItems.find(
-              (item) => String(item.screen) === String(screen),
-            )?.label ?? null
-          }
-          fieldName={
-            realFields.find((field) => String(field.id) === String(favoriteFieldId))?.name ??
-            realFields[0]?.name ??
-            null
-          }
-          onBack={goBackInMenu}
-          onMenu={() => setSideMenuOpen(true)}
-          onOpenAi={() => setScreen('aiAnalysis')}
-        />
-      )}
+      <AppDrawer open={sideMenuOpen} activeScreen={screen} onClose={() => setSideMenuOpen(false)} onNavigate={(target, label) => { setSideMenuOpen(false); if (label === 'Tarlalarım') { setScreen('home'); window.setTimeout(() => document.querySelector('.tp-home-field')?.scrollIntoView({ behavior: 'smooth' }), 80); return; } setScreen(target as Screen); }} />
+      {showGlobalBand && screen !== 'home' && <GlobalPusulaBand screen={String(screen)} title={desktopMenuItems.find((item) => String(item.screen) === String(screen))?.label ?? null} fieldName={realFields.find((field) => String(field.id) === String(favoriteFieldId))?.name ?? realFields[0]?.name ?? null} onBack={goBackInMenu} onMenu={() => setSideMenuOpen(true)} onOpenAi={() => setScreen('aiAnalysis')} />}
       {content}
     </>
   );
 
-  if (screen === 'soilAnalysisHub') {
-    return withGlobalDrawer(
-      <SoilAnalysisPage
-        fields={realFields}
-        selectedFieldId={
-          soilFieldId ||
-          String(
-            realFields.find(
-              (field) => String(field.id) === favoriteFieldId,
-            )?.id ??
-              realFields[0]?.id ??
-              '',
-          )
-        }
-        onFieldChange={(id) => setSoilFieldId(id)}
-        onBack={() => setScreen('home')}
-        onOpenDemMap={() => setDemMapOpen(true)}
-        onOpenSentinel1Map={() => setSentinel1MapOpen(true)}
-      />
-    );
-  }
-
-
-  if (screen === 'inventoryHub') {
-    return withGlobalDrawer(
-      <PestStoreScreen
-        fields={realFields}
-        screen={screen}
-        desktopMenuItems={desktopMenuItems}
-        sideMenuOpen={false}
-        setScreen={setScreen}
-        setSideMenuOpen={setSideMenuOpen}
-        onNavigateToField={(fieldId) => {
-          const field = realFields.find(
-            (item) => String(item.id) === String(fieldId),
-          );
-
-          if (field) {
-            openFieldDetail(field);
-          }
-        }}
-      />
-    );
-  }
-
-  if (screen === 'marketHub') {
-    return withGlobalDrawer(
-      <MarketPricesScreen
-        fields={realFields}
-        selectedFieldId={
-          favoriteFieldId ||
-          String(realFields[0]?.id ?? '')
-        }
-        screen={screen}
-        setScreen={setScreen}
-      />
-    );
-  }
-
-  if (screen === 'supportHub') {
-    return withGlobalDrawer(
-      <AgriculturalSupportScreen
-        fields={realFields}
-        selectedFieldId={
-          favoriteFieldId ||
-          String(realFields[0]?.id ?? '')
-        }
-        screen={screen}
-        desktopMenuItems={desktopMenuItems}
-        sideMenuOpen={false}
-        setScreen={setScreen}
-        setSideMenuOpen={setSideMenuOpen}
-      />,
-    );
-  }
-
-  if (screen === 'fieldControlHub') {
-    return withGlobalDrawer(
-      <UnifiedMapScreen
-        fields={realFields}
-        selectedFieldId={
-          mapFieldId ||
-          fieldControlFieldId ||
-          favoriteFieldId ||
-          String(realFields[0]?.id ?? '')
-        }
-        initialSection="vegetation"
-        onFieldChange={(id) => {
-          setMapFieldId(id);
-          setFieldControlFieldId(id);
-          setSoilFieldId(id);
-          setWeatherHubFieldId(id);
-        }}
-        onBack={() => setScreen('home')}
-      />
-    );
-  }
-
-  if (screen === 'weatherHub') {
-    return withGlobalDrawer(
-      <WeatherHubScreen
-        cmsRuntimeCss={cmsRuntimeCss}
-        cmsPageFor={cmsPageFor}
-        cmsBlockFor={cmsBlockFor}
-        cmsText={cmsText}
-        realFields={realFields}
-        fieldWeather={fieldWeather}
-        fieldHourlyWeather={fieldHourlyWeather}
-        loadFieldHourlyWeather={loadFieldHourlyWeather}
-        onPlanSprayWindow={(field, date, time, until) => {
-          openCalendarScreen();
-          openReminderModal(field);
-          setReminderType('İlaçlama');
-          setReminderTitle('İlaçlama hava kontrolü');
-          setReminderDate(date);
-          setReminderTime(time);
-          setReminderNotes(`${time}–${until} aralığı saatlik hava tahmininde değerlendirilebilir görünüyor. İşlem öncesi tarladaki hava koşullarını ve kullanacağın ürünün etiketini kontrol et.`);
-        }}
-        weatherHubFieldId={weatherHubFieldId}
-        nasaPowerState={nasaPowerState}
-        era5ClimateState={era5ClimateState}
-        unifiedClimateContext={unifiedClimateContext}
-        sideMenuOpen={false}
-        screen={screen}
-        desktopMenuItems={desktopMenuItems}
-        setScreen={setScreen}
-        setSideMenuOpen={setSideMenuOpen}
-        setWeatherHubFieldId={setWeatherHubFieldId}
-        loadFieldWeather={loadFieldWeather}
-        weatherDayLabel={weatherDayLabel}
-        weatherIcon={weatherIcon}
-        openEra5Map={() => { setUnifiedMapSection('climate'); setUnifiedMapOpen(true); }}
-      />
-    );
-  }
-
-  if (screen === 'adminHub') {
-    return <AdminPageBuilder onBack={() => setScreen('home')} />;
-  }
-
-  if (screen === 'agendaHub') {
-    return withGlobalDrawer(
-      <AgriNewsScreen
-        fields={realFields}
-        selectedFieldId={
-          favoriteFieldId ||
-          String(realFields[0]?.id ?? '')
-        }
-        screen={screen}
-        desktopMenuItems={desktopMenuItems}
-        sideMenuOpen={false}
-        setScreen={setScreen}
-        setSideMenuOpen={setSideMenuOpen}
-      />
-    );
-  }
-
-  if (screen === 'nutritionHub') {
-    return withGlobalDrawer(
-      <PlantNutritionScreen
-        fields={realFields}
-        selectedFieldId={
-          favoriteFieldId ||
-          String(realFields[0]?.id ?? '')
-        }
-        screen={screen}
-        desktopMenuItems={desktopMenuItems}
-        sideMenuOpen={false}
-        setScreen={setScreen}
-        setSideMenuOpen={setSideMenuOpen}
-      />
-    );
-  }
-
-  if (screen === 'producerMarketHub') {
-    return withGlobalDrawer(
-      <ProducerMarketScreen
-        fields={realFields}
-        selectedFieldId={
-          favoriteFieldId ||
-          String(realFields[0]?.id ?? '')
-        }
-        screen={screen}
-        desktopMenuItems={desktopMenuItems}
-        sideMenuOpen={false}
-        setScreen={setScreen}
-        setSideMenuOpen={setSideMenuOpen}
-      />
-    );
-  }
-
-  if (screen === 'pestGuideHub') {
-    return withGlobalDrawer(
-      <PestGuideScreen
-        fields={realFields}
-        selectedFieldId={
-          favoriteFieldId ||
-          String(realFields[0]?.id ?? '')
-        }
-        screen={screen}
-        desktopMenuItems={desktopMenuItems}
-        sideMenuOpen={false}
-        setScreen={setScreen}
-        setSideMenuOpen={setSideMenuOpen}
-      />
-    );
-  }
+  if (screen === 'soilAnalysisHub') return withGlobalDrawer(<SoilAnalysisPage fields={realFields} selectedFieldId={soilFieldId || String(realFields.find((field) => String(field.id) === favoriteFieldId)?.id ?? realFields[0]?.id ?? '')} onFieldChange={(id) => setSoilFieldId(id)} onBack={() => setScreen('home')} onOpenDemMap={() => setDemMapOpen(true)} onOpenSentinel1Map={() => setSentinel1MapOpen(true)} />);
+  if (screen === 'inventoryHub') return withGlobalDrawer(<PestStoreScreen fields={realFields} screen={screen} desktopMenuItems={desktopMenuItems} sideMenuOpen={false} setScreen={setScreen} setSideMenuOpen={setSideMenuOpen} onNavigateToField={(fieldId) => { const field = realFields.find((item) => String(item.id) === String(fieldId)); if (field) openFieldDetail(field); }} />);
+  if (screen === 'marketHub') return withGlobalDrawer(<MarketPricesScreen fields={realFields} selectedFieldId={favoriteFieldId || String(realFields[0]?.id ?? '')} screen={screen} setScreen={setScreen} />);
+  if (screen === 'supportHub') return withGlobalDrawer(<AgriculturalSupportScreen fields={realFields} selectedFieldId={favoriteFieldId || String(realFields[0]?.id ?? '')} screen={screen} desktopMenuItems={desktopMenuItems} sideMenuOpen={false} setScreen={setScreen} setSideMenuOpen={setSideMenuOpen} />);
+  if (screen === 'fieldControlHub') return withGlobalDrawer(<UnifiedMapScreen fields={realFields} selectedFieldId={mapFieldId || fieldControlFieldId || favoriteFieldId || String(realFields[0]?.id ?? '')} initialSection="vegetation" onFieldChange={(id) => { setMapFieldId(id); setFieldControlFieldId(id); setSoilFieldId(id); setWeatherHubFieldId(id); }} onBack={() => setScreen('home')} />);
+  if (screen === 'weatherHub') return withGlobalDrawer(<WeatherHubScreen cmsRuntimeCss={cmsRuntimeCss} cmsPageFor={cmsPageFor} cmsBlockFor={cmsBlockFor} cmsText={cmsText} realFields={realFields} fieldWeather={fieldWeather} fieldHourlyWeather={fieldHourlyWeather} loadFieldHourlyWeather={loadFieldHourlyWeather} onPlanSprayWindow={(field, date, time, until) => { openCalendarScreen(); openReminderModal(field); setReminderType('İlaçlama'); setReminderTitle('İlaçlama hava kontrolü'); setReminderDate(date); setReminderTime(time); setReminderNotes(`${time}–${until} aralığı saatlik hava tahmininde değerlendirilebilir görünüyor. İşlem öncesi tarladaki hava koşullarını ve kullanacağın ürünün etiketini kontrol et.`); }} weatherHubFieldId={weatherHubFieldId} nasaPowerState={nasaPowerState} era5ClimateState={era5ClimateState} unifiedClimateContext={unifiedClimateContext} sideMenuOpen={false} screen={screen} desktopMenuItems={desktopMenuItems} setScreen={setScreen} setSideMenuOpen={setSideMenuOpen} setWeatherHubFieldId={setWeatherHubFieldId} loadFieldWeather={loadFieldWeather} weatherDayLabel={weatherDayLabel} weatherIcon={weatherIcon} openEra5Map={() => { setUnifiedMapSection('climate'); setUnifiedMapOpen(true); }} />);
+  if (screen === 'adminHub') return <AdminPageBuilder onBack={() => setScreen('home')} />;
+  if (screen === 'agendaHub') return withGlobalDrawer(<AgriNewsScreen fields={realFields} selectedFieldId={favoriteFieldId || String(realFields[0]?.id ?? '')} screen={screen} desktopMenuItems={desktopMenuItems} sideMenuOpen={false} setScreen={setScreen} setSideMenuOpen={setSideMenuOpen} />);
+  if (screen === 'nutritionHub') return withGlobalDrawer(<PlantNutritionScreen fields={realFields} selectedFieldId={favoriteFieldId || String(realFields[0]?.id ?? '')} screen={screen} desktopMenuItems={desktopMenuItems} sideMenuOpen={false} setScreen={setScreen} setSideMenuOpen={setSideMenuOpen} />);
+  if (screen === 'producerMarketHub') return withGlobalDrawer(<ProducerMarketScreen fields={realFields} selectedFieldId={favoriteFieldId || String(realFields[0]?.id ?? '')} screen={screen} desktopMenuItems={desktopMenuItems} sideMenuOpen={false} setScreen={setScreen} setSideMenuOpen={setSideMenuOpen} />);
+  if (screen === 'pestGuideHub') return withGlobalDrawer(<PestGuideScreen fields={realFields} selectedFieldId={favoriteFieldId || String(realFields[0]?.id ?? '')} screen={screen} desktopMenuItems={desktopMenuItems} sideMenuOpen={false} setScreen={setScreen} setSideMenuOpen={setSideMenuOpen} />);
 
   const placeholder = placeholderMeta[screen];
-  if (placeholder) {
-    return withGlobalDrawer(
-      <PlaceholderScreen
-        cmsRuntimeCss={cmsRuntimeCss}
-        placeholder={placeholder}
-        sideMenuOpen={false}
-        screen={screen}
-        desktopMenuItems={desktopMenuItems}
-        setScreen={setScreen}
-        setSideMenuOpen={setSideMenuOpen}
-      />
-    );
-  }
+  if (placeholder) return withGlobalDrawer(<PlaceholderScreen cmsRuntimeCss={cmsRuntimeCss} placeholder={placeholder} sideMenuOpen={false} screen={screen} desktopMenuItems={desktopMenuItems} setScreen={setScreen} setSideMenuOpen={setSideMenuOpen} />);
 
   return withGlobalDrawer(
     <HomeScreen
