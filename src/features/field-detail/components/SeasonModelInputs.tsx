@@ -4,6 +4,7 @@ import {
   ensurePyFao56ReadinessFreshBestEffort,
 } from '../../../services/modelReadiness.service';
 import type { Field, FieldSeason } from '../../../types';
+import DualKcShadowStatus from '../../irrigation/components/DualKcShadowStatus';
 import FieldWaterMeasurements from '../../irrigation/components/FieldWaterMeasurements';
 import FieldGrowthObservations from './FieldGrowthObservations';
 import { checkSeasonWeather, hasFieldSoilReport, type SeasonWeatherCoverage } from '../services/seasonModelInputs.service';
@@ -35,6 +36,7 @@ export default function SeasonModelInputs({ field, seasons, seasonsLoading }: Pr
     Math.floor((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${season.plantingDate}T00:00:00Z`)) / 86400000) + 1 : 0;
   const canCheck = Boolean(!seasonsLoading && season?.plantingDate && seasonDays > 0 && seasonDays <= 731 &&
     latitude != null && longitude != null && Number.isFinite(latitude) && Number.isFinite(longitude));
+  const irrigationStatus = String((field as any).irrigationStatus ?? '').trim();
 
   useEffect(() => {
     if (!seasons.some((item) => item.id === selected)) setSelected(seasons[0]?.id ?? '');
@@ -87,6 +89,10 @@ export default function SeasonModelInputs({ field, seasons, seasonsLoading }: Pr
       />
     )}
     <FieldWaterMeasurements fieldId={String(field.id)} />
+    <DualKcShadowStatus
+      fieldId={String(field.id)}
+      irrigationStatus={irrigationStatus}
+    />
   </>;
 
   return <>
@@ -130,5 +136,9 @@ export default function SeasonModelInputs({ field, seasons, seasonsLoading }: Pr
       </div>
     </details></section>
     <FieldWaterMeasurements fieldId={String(field.id)} />
+    <DualKcShadowStatus
+      fieldId={String(field.id)}
+      irrigationStatus={irrigationStatus}
+    />
   </>;
 }
