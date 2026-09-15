@@ -77,6 +77,15 @@ function emptyEvidence(fieldId: string, error: string): DualKcShadowEvidence {
   };
 }
 
+function emitUpdated(fieldId: string) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent('tp:dual-kc-shadow-updated', {
+      detail: { fieldId },
+    }),
+  );
+}
+
 function isDualKcAuditRow(row: any) {
   return (
     row?.output?.shadow_scope === 'dual_kc_water_balance_bounded_rew' ||
@@ -199,6 +208,7 @@ export async function runDualKcShadowEvidence(
       );
     } finally {
       inFlight.delete(field);
+      emitUpdated(field);
     }
   })();
 
