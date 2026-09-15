@@ -19,6 +19,8 @@ type Props = {
 
 type CanonicalStage = Exclude<PhenologyStage, 'unknown'>;
 
+const FIELD_TIME_ZONE = 'Europe/Istanbul';
+
 const STAGE_OPTIONS: Array<{
   value: CanonicalStage;
   label: string;
@@ -45,7 +47,14 @@ const STAGE_LABEL = new Map(
 );
 
 function todayLocal() {
-  return new Date().toLocaleDateString('en-CA');
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: FIELD_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
 }
 
 export default function FieldGrowthObservations({
@@ -196,7 +205,7 @@ export default function FieldGrowthObservations({
       <h3>Bitki hangi evredeydi?</h3>
       <p>
         Tarlada gerçekten gördüğün gelişim evresini tarihli kaydet. Bu kayıt model tahmini değildir;
-        aynı günün otomatik fenoloji sonucu ile uyuşursa Kcb doğrulamasına kanıt olabilir.
+        aynı gün için model farklı bir evre tahmin etse bile gerçek saha gözlemi Kcb doğrulamasında öncelikli kanıttır.
       </p>
 
       {!canRenderForm ? (
@@ -268,7 +277,7 @@ export default function FieldGrowthObservations({
           {perennial
             ? `Bu çok yıllık tarlada ${observedDays} ayrı güne ait saha gözlemi var.`
             : `Seçilen sezonda ${observedDays} ayrı güne ait gözlem var.`}{' '}
-          Kcb doğrulamasında yalnız tarih ve evre eşleşen gerçek saha gözlemi kullanılır.
+          Kcb doğrulamasında aynı gün için tek ve açık bir gerçek saha evresi kullanılır; model tahmini farklıysa çelişki ayrıca işaretlenir.
         </p>
       )}
 
