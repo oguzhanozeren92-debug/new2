@@ -6,6 +6,10 @@ import {
   refreshPyFao56ReadinessBestEffort,
 } from '../../../services/modelReadiness.service';
 
+import {
+  runDualKcShadowEvidenceBestEffort,
+} from '../../irrigation/services/dualKcShadow.service';
+
 import type {
   CreateFieldGrowthObservationInput,
   FieldGrowthObservation,
@@ -81,6 +85,12 @@ function syncGrowthStageObservationTaskBestEffort(fieldId: string) {
     .catch((error: unknown) => {
       console.warn('[growth-observation] Görev senkronizasyonu yapılamadı:', error);
     });
+}
+
+function refreshGrowthModels(fieldId: string) {
+  refreshPyFao56ReadinessBestEffort(fieldId);
+  runDualKcShadowEvidenceBestEffort(fieldId);
+  syncGrowthStageObservationTaskBestEffort(fieldId);
 }
 
 export async function recordFieldGrowthObservation(
@@ -164,8 +174,7 @@ export async function recordFieldGrowthObservation(
     throw error;
   }
 
-  refreshPyFao56ReadinessBestEffort(validated.fieldId);
-  syncGrowthStageObservationTaskBestEffort(validated.fieldId);
+  refreshGrowthModels(validated.fieldId);
   return mapRow(data);
 }
 
@@ -217,8 +226,6 @@ export async function deleteFieldGrowthObservation(
   if (error) throw error;
 
   if (existing?.field_id) {
-    const fieldId = String(existing.field_id);
-    refreshPyFao56ReadinessBestEffort(fieldId);
-    syncGrowthStageObservationTaskBestEffort(fieldId);
+    refreshGrowthModels(String(existing.field_id));
   }
 }
