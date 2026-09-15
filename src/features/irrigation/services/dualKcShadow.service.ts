@@ -29,6 +29,7 @@ export type DualKcShadowEvidence = {
 export type DualKcShadowAudit = {
   fieldId: string;
   status: 'running' | 'completed' | 'blocked' | 'failed' | 'queued';
+  notApplicable: boolean;
   missingInputs: string[];
   scenarios: DualKcShadowScenario[];
   engineVersion: string | null;
@@ -132,6 +133,7 @@ export async function loadLatestDualKcShadowAudit(
   return {
     fieldId: String(row.field_id ?? field),
     status,
+    notApplicable: row?.input_summary?.reason === 'rainfed_not_applicable',
     missingInputs: stringArray(row.missing_inputs),
     scenarios,
     engineVersion:
@@ -165,9 +167,7 @@ export async function runDualKcShadowEvidence(
     try {
       const { data, error } = await supabase.functions.invoke(
         'pyfao56-dual-kc-shadow-run',
-        {
-          body: { field_id: field },
-        },
+        { body: { field_id: field } },
       );
 
       if (error) throw error;
@@ -189,14 +189,8 @@ export async function runDualKcShadowEvidence(
         productionAuthority: false as const,
         missingInputs: stringArray(data?.missing_inputs),
         scenarios,
-        engineVersion:
-          result?.engine_version == null
-            ? null
-            : String(result.engine_version),
-        completedAt:
-          data?.completed_at == null
-            ? null
-            : String(data.completed_at),
+        engineVersion: result?.engine_version == null ? null : String(result.engine_version),
+        completedAt: data?.completed_at == null ? null : String(data.completed_at),
         error: null,
       };
     } catch (error) {
@@ -238,9 +232,7 @@ export function summarizeDualKcShadowRange(
     : Boolean(evidence);
   const scenarios = evidence?.scenarios ?? [];
 
-  if (!ok || blocked || scenarios.length === 0) {
-    return null;
-  }
+  if (!ok || blocked || scenarios.length === 0) return null;
 
   const rootValues = scenarios
     .map((scenario) => scenario.finalState.rootDepletionMm)
