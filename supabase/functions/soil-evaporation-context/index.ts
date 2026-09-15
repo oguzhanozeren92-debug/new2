@@ -106,18 +106,12 @@ function weightedSurface(layers: any[]) {
 
   if (covered + 0.001 < SURFACE_DEPTH_CM) return null;
 
-  const sand = sandWeighted / covered;
-  const silt = siltWeighted / covered;
-  const clay = clayWeighted / covered;
-  const fieldCapacity = fcWeighted / covered;
-  const wiltingPoint = wpWeighted / covered;
-
   return {
-    sand,
-    silt,
-    clay,
-    fieldCapacity,
-    wiltingPoint,
+    sand: sandWeighted / covered,
+    silt: siltWeighted / covered,
+    clay: clayWeighted / covered,
+    fieldCapacity: fcWeighted / covered,
+    wiltingPoint: wpWeighted / covered,
   };
 }
 
@@ -169,7 +163,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const fieldId = String(body?.field_id ?? '').trim();
     if (!fieldId) return json({ ok: false, error: 'field_id gerekli.' }, 400);
-    if (['latitude', 'longitude', 'sand', 'silt', 'clay', 'texture', 'rew'].some((key) => key in body)) {
+    if (['latitude', 'longitude', 'sand', 'silt', 'clay', 'texture', 'rew', 'fw', 'irrigation_method'].some((key) => key in body)) {
       return json({ ok: false, error: 'Toprak buharlaşma girdileri istemciden kabul edilmez.' }, 400);
     }
 
@@ -186,7 +180,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: field, error: fieldError } = await serviceClient
       .from('fields')
-      .select('id,user_id,latitude,longitude,parcel_centroid_lat,parcel_centroid_lng')
+      .select('id,user_id,latitude,longitude,parcel_centroid_lat,parcel_centroid_lng,irrigation_method')
       .eq('id', fieldId)
       .eq('user_id', authData.user.id)
       .maybeSingle();
@@ -226,19 +220,41 @@ Deno.serve(async (req: Request) => {
     }
 
     const textureKey = classifyUsdaTexture(surface.sand, surface.silt, surface.clay);
-    let reference: any = null;
-    if (textureKey) {
-      const { data, error } = await serviceClient
-        .from('soil_evaporation_reference_profiles')
-        .select('texture_key,texture_label,rew_min_mm,rew_max_mm,tew_min_mm_at_ze_010,tew_max_mm_at_ze_010,ze_recommended_min_m,ze_recommended_max_m,source_label,source_url,reference_version')
-        .eq('texture_key', textureKey)
-        .maybeSingle();
-      if (error) throw error;
-      reference = data;
-    }
+    const irrigationMethod = String(field.irrigation_method ?? '').trim();
 
+    const [rewResult, wettingResult] = await Promise.all([
+      textureKey
+        ? serviceClient
+            .from('soil_evaporation_reference_profiles')
+            .select('texture_key,texture_label,rew_min_mm,rew_max_mm,tew_min_mm_at_ze_010,tew_max_mm_at_ze_010,ze_recommended_min_m,ze_recommended_max_m,source_label,source_url,reference_version')
+            .eq('texture_key', textureKey)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      irrigationMethod && irrigationMethod !== 'unknown'
+        ? serviceClient
+            .from('irrigation_wetting_reference_profiles')
+            .select('method_key,display_name_tr,fw_min,fw_max,source_label,source_url,reference_version')
+            .eq('method_key', irrigationMethod)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    if (rewResult.error) throw rewResult.error;
+    if (wettingResult.error) throw wettingResult.error;
+
+    const reference = rewResult.data;
+    const wettingReference = wettingResult.data;
     const tewAt010 = 1000 * (surface.fieldCapacity - 0.5 * surface.wiltingPoint) * 0.10;
     const tewAt015 = 1000 * (surface.fieldCapacity - 0.5 * surface.wiltingPoint) * 0.15;
+
+    const missingInputs: string[] = [];
+    if (!reference) missingInputs.push('fao56_table19_texture_reference');
+    missingInputs.push('validated_single_rew_value', 'current_surface_depletion_de');
+    if (!irrigationMethod || irrigationMethod === 'unknown') {
+      missingInputs.push('irrigation_method_for_fw');
+    } else if (!wettingReference) {
+      missingInputs.push('fao56_table20_wetting_reference');
+    }
 
     return json({
       ok: true,
@@ -281,11 +297,29 @@ Deno.serve(async (req: Request) => {
           reference_version: reference.reference_version,
         },
       } : null,
+      irrigation_wetting: {
+        method_key: irrigationMethod || null,
+        method_label: wettingReference?.display_name_tr ?? null,
+        fw_range: wettingReference
+          ? [Number(wettingReference.fw_min), Number(wettingReference.fw_max)]
+          : null,
+        exact: wettingReference
+          ? Number(wettingReference.fw_min) === Number(wettingReference.fw_max)
+          : false,
+        source: wettingReference ? {
+          label: wettingReference.source_label,
+          url: wettingReference.source_url,
+          reference_version: wettingReference.reference_version,
+        } : null,
+        note: wettingReference
+          ? 'FAO-56 Table 20 aralığı korunur; aralık tek bir fw değerine indirgenmez.'
+          : irrigationMethod === 'unknown'
+            ? 'Sulama yöntemi bilinmiyor; fw uydurulmaz.'
+            : 'Sulama yöntemi henüz kaydedilmedi; fw uydurulmaz.',
+      },
       validated_rew_mm: null,
-      missing_inputs: reference
-        ? ['validated_single_rew_value', 'current_surface_depletion_de']
-        : ['fao56_table19_texture_reference', 'validated_single_rew_value', 'current_surface_depletion_de'],
-      caution: 'FAO-56 Table 19 REW değeri bir aralık olarak korunur. Tek REW değeri seçilmez ve yüzey De bilinmeden dual-Kc yüzey buharlaşma katmanı hazır sayılmaz.',
+      missing_inputs: [...new Set(missingInputs)],
+      caution: 'FAO-56 Table 19 REW ve Table 20 fw değerleri aralık olarak korunur. Tek REW/fw değeri seçilmez ve yüzey De bilinmeden dual-Kc yüzey buharlaşma katmanı production-ready sayılmaz.',
       generated_at: new Date().toISOString(),
     });
   } catch (error) {
