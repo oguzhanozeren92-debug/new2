@@ -18,7 +18,7 @@ RUN if [ "$INSTALL_PILOT" = "1" ]; then \
     && pip install --no-cache-dir -r requirements.txt \
     && if [ "$INSTALL_PILOT" = "1" ]; then pip install --no-cache-dir -r requirements-pilot.txt; fi
 
-COPY app.py engine_registry.py aquacrop_runner.py ./
+COPY app.py dual_app.py pyfao56_dual_runner.py engine_registry.py aquacrop_runner.py pcse_runner.py ./
 
 RUN useradd --create-home --uid 10001 gateway \
     && chown -R gateway:gateway /app
@@ -26,4 +26,4 @@ USER gateway
 
 EXPOSE 8080
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers"]
+CMD ["uvicorn", "dual_app:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers"]
