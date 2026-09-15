@@ -1,7 +1,7 @@
 import { supabase } from '../../../supabaseClient';
 
 import {
-  refreshPyFao56ReadinessBestEffort,
+  refreshModelReadinessBestEffort,
 } from '../../../services/modelReadiness.service';
 
 import type {
@@ -140,7 +140,8 @@ export async function createFieldOperation(
   const operation = mapOperation(data);
 
   if (operation.type === 'Sulama') {
-    refreshPyFao56ReadinessBestEffort(operation.fieldId);
+    refreshModelReadinessBestEffort(operation.fieldId, 'pyfao56');
+    refreshModelReadinessBestEffort(operation.fieldId, 'aquacrop');
   }
 
   if (typeof window !== 'undefined') {
