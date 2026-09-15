@@ -28,6 +28,19 @@ function titleForType(type: FieldOperationType) {
   return `${type} yapıldı`;
 }
 
+function syncIrrigationAmountTaskBestEffort(fieldId: string) {
+  void supabase
+    .rpc('tp_sync_irrigation_amount_task', { p_field_id: fieldId })
+    .then(({ error }) => {
+      if (error) {
+        console.warn('[field-operation] Sulama miktarı görevi senkronize edilemedi:', error.message);
+      }
+    })
+    .catch((error: unknown) => {
+      console.warn('[field-operation] Sulama miktarı görevi senkronize edilemedi:', error);
+    });
+}
+
 function mapOperation(row: any): FieldOperation {
   return {
     id: String(row.id),
@@ -142,6 +155,7 @@ export async function createFieldOperation(
   if (operation.type === 'Sulama') {
     refreshModelReadinessBestEffort(operation.fieldId, 'pyfao56');
     refreshModelReadinessBestEffort(operation.fieldId, 'aquacrop');
+    syncIrrigationAmountTaskBestEffort(operation.fieldId);
   }
 
   if (typeof window !== 'undefined') {
