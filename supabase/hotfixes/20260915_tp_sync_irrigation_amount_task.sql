@@ -4,6 +4,10 @@
 -- kept outside supabase/migrations because no migration-history row exists for
 -- this change. Reconcile it into a normal migration when migration history is
 -- normalized/backfilled.
+--
+-- IMPORTANT: all "today" comparisons use the Turkey field day, matching the
+-- irrigation water-balance Edge Function. This avoids a 00:00-03:00 local-time
+-- mismatch while PostgreSQL current_date is still on the previous UTC day.
 
 create or replace function public.tp_sync_irrigation_amount_task(p_field_id uuid)
 returns setof public.field_todos
@@ -20,6 +24,7 @@ declare
   v_notes text := '';
   v_has_amount boolean := false;
   v_task_key text := 'model-last-irrigation-amount';
+  v_field_date date := (now() at time zone 'Europe/Istanbul')::date;
 begin
   if v_user is null then raise exception 'not_authenticated'; end if;
 
@@ -46,7 +51,7 @@ begin
   where a.user_id = v_user
     and a.field_id = p_field_id
     and lower(trim(a.activity_type)) = lower('Sulama')
-    and a.activity_date >= current_date - 120
+    and a.activity_date between v_field_date - 120 and v_field_date
   order by a.activity_date desc, a.created_at desc
   limit 1;
 
@@ -90,7 +95,9 @@ begin
         metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object(
           'closedReason','quantified_irrigation_record',
           'activityId',v_activity.id,
-          'activityDate',v_activity.activity_date
+          'activityDate',v_activity.activity_date,
+          'evidenceDate',v_field_date,
+          'fieldTimeZone','Europe/Istanbul'
         )
     where user_id = v_user and field_id = p_field_id
       and task_key = v_task_key and not completed;
@@ -113,6 +120,8 @@ begin
         'engines',jsonb_build_array('pyfao56'),
         'activityId',v_activity.id,
         'activityDate',v_activity.activity_date,
+        'evidenceDate',v_field_date,
+        'fieldTimeZone','Europe/Istanbul',
         'requiredEvidence','quantified-irrigation-water'
       ),
       false,
