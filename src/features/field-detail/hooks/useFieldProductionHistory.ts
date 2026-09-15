@@ -75,7 +75,7 @@ export function useFieldProductionHistory({ selectedField, setSelectedField, set
       const [seasonResult, yieldResult] = await Promise.all([
         supabase
           .from('field_seasons')
-          .select('id, year, crop, planting_date, harvest_date, notes')
+          .select('id, field_id, year, crop, variety_name, planting_date, harvest_date, notes')
           .eq('field_id', String(field.id))
           .eq('user_id', user.id)
           .order('year', { ascending: false }),
@@ -92,8 +92,10 @@ export function useFieldProductionHistory({ selectedField, setSelectedField, set
 
       setAnnualSeasons((seasonResult.data ?? []).map((item) => ({
         id: String(item.id),
+        fieldId: String(item.field_id),
         year: Number(item.year),
         crop: item.crop ?? 'Ürün belirtilmedi',
+        varietyName: item.variety_name ?? null,
         plantingDate: item.planting_date ?? null,
         harvestDate: item.harvest_date ?? null,
         notes: item.notes ?? null,
