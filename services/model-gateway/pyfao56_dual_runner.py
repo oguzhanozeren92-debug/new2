@@ -21,6 +21,12 @@ class DualKcStation(GatewayModel):
     wind_height_m: float = Field(default=10.0, gt=0, le=100)
 
 
+class DualKcBasalProfile(GatewayModel):
+    initial: float = Field(gt=0, le=3)
+    mid: float = Field(gt=0, le=3)
+    end: float = Field(gt=0, le=3)
+
+
 class DualKcWeatherDay(GatewayModel):
     date: date
     solar_radiation_mj_m2: float = Field(ge=0, le=60)
@@ -54,6 +60,7 @@ class DualKcIrrigationEvent(GatewayModel):
 class PyFao56DualKcShadowRequest(GatewayModel):
     field_id: str = Field(min_length=1, max_length=128)
     station: DualKcStation
+    basal_profile: DualKcBasalProfile
     state: DualKcInitialState
     rew_values_mm: list[float] = Field(min_length=1, max_length=2)
     days: list[DualKcWeatherDay] = Field(min_length=1, max_length=MAX_DUAL_KC_DAYS)
@@ -97,6 +104,9 @@ def _validate_contract(payload: PyFao56DualKcShadowRequest) -> tuple[list[DualKc
             raise ValueError(f"Invalid temperature range for {item.date.isoformat()}")
         if item.dew_point_c > item.tmax_c:
             raise ValueError(f"Invalid dew point for {item.date.isoformat()}")
+
+    if abs(payload.basal_profile.mid - payload.basal_profile.initial) < 1e-9:
+        raise ValueError("FAO basal Kcb profile requires mid to differ from initial for pyfao56 interpolation")
 
     state = payload.state
     if state.theta_fc <= state.theta_wp:
@@ -183,14 +193,14 @@ def _run_rew_scenario(
     tew_mm: float,
 ) -> dict[str, Any]:
     state = payload.state
+    profile = payload.basal_profile
     theta0 = state.theta_fc - state.initial_dr_mm / (1000.0 * state.root_depth_m)
     theta0 = min(state.theta_fc, max(state.theta_wp, theta0))
-    first_kcb = days[0].kcb
 
     parameters = fao.Parameters(
-        Kcbini=first_kcb,
-        Kcbmid=first_kcb,
-        Kcbend=first_kcb,
+        Kcbini=profile.initial,
+        Kcbmid=profile.mid,
+        Kcbend=profile.end,
         Lini=1,
         Ldev=1,
         Lmid=max(1, len(days)),
@@ -264,6 +274,11 @@ def _run_rew_scenario(
     final = output_days[-1]
     return {
         "rew_mm": _round(rew_mm, 3),
+        "basal_profile": {
+            "initial": _round(profile.initial, 4),
+            "mid": _round(profile.mid, 4),
+            "end": _round(profile.end, 4),
+        },
         "initial_state": {
             "surface_depletion_mm": _round(state.initial_de_mm),
             "root_depletion_mm": _round(state.initial_dr_mm),
