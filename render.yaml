@@ -8,7 +8,7 @@ services:
     region: frankfurt
     autoDeploy: false
     buildCommand: cd services/model-gateway && pip install -r requirements.txt
-    startCommand: cd services/model-gateway && uvicorn dual_app:app --host 0.0.0.0 --port $PORT
+    startCommand: cd services/model-gateway && uvicorn app:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: MODEL_GATEWAY_ENV
