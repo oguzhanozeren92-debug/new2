@@ -2,6 +2,10 @@ import {
   supabase,
 } from '../../../supabaseClient';
 
+import {
+  refreshPyFao56ReadinessBestEffort,
+} from '../../../services/modelReadiness.service';
+
 import type {
   CreateSoilWaterMeasurementInput,
   SoilWaterMeasurement,
@@ -126,6 +130,8 @@ export async function recordSoilWaterMeasurement(
     .single();
 
   if (error) throw error;
+
+  refreshPyFao56ReadinessBestEffort(validated.fieldId);
   return mapRow(data);
 }
 
@@ -157,10 +163,25 @@ export async function deleteSoilWaterMeasurement(
   const id = String(measurementId ?? '').trim();
   if (!id) throw new Error('Silinecek toprak nem ölçümü kimliği gerekli.');
 
+  const {
+    data: existing,
+    error: existingError,
+  } = await supabase
+    .from('field_water_measurements')
+    .select('field_id')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
   const { error } = await supabase
     .from('field_water_measurements')
     .delete()
     .eq('id', id);
 
   if (error) throw error;
+
+  if (existing?.field_id) {
+    refreshPyFao56ReadinessBestEffort(String(existing.field_id));
+  }
 }
