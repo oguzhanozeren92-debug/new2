@@ -3,7 +3,7 @@ import {
 } from '../../../supabaseClient';
 
 import {
-  refreshPyFao56ReadinessBestEffort,
+  refreshModelReadinessBestEffort,
 } from '../../../services/modelReadiness.service';
 
 import type {
@@ -79,6 +79,11 @@ function validateInput(input: CreateSoilWaterMeasurementInput) {
   };
 }
 
+function refreshWaterModels(fieldId: string) {
+  refreshModelReadinessBestEffort(fieldId, 'pyfao56');
+  refreshModelReadinessBestEffort(fieldId, 'aquacrop');
+}
+
 export async function recordSoilWaterMeasurement(
   input: CreateSoilWaterMeasurementInput,
 ): Promise<SoilWaterMeasurement> {
@@ -131,7 +136,7 @@ export async function recordSoilWaterMeasurement(
 
   if (error) throw error;
 
-  refreshPyFao56ReadinessBestEffort(validated.fieldId);
+  refreshWaterModels(validated.fieldId);
   return mapRow(data);
 }
 
@@ -182,6 +187,6 @@ export async function deleteSoilWaterMeasurement(
   if (error) throw error;
 
   if (existing?.field_id) {
-    refreshPyFao56ReadinessBestEffort(String(existing.field_id));
+    refreshWaterModels(String(existing.field_id));
   }
 }
