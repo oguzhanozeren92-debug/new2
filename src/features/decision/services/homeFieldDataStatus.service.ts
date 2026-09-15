@@ -1,6 +1,7 @@
 import type { HomeFieldDataStatusItem } from '../components/HomeFieldDataStatus';
 import { isRecentSatelliteObservation } from '../../satellite/services/buildHomeSatelliteDecision';
 import type { HomeDualKcEvidenceStatus } from '../../irrigation/hooks/useHomeIrrigationDecision';
+import { readHomeDualKcEvidenceSnapshot } from '../../irrigation/services/homeDualKcEvidenceSnapshot';
 import type { FieldWeatherState } from '../../../types';
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -46,7 +47,10 @@ export function buildHomeFieldDataStatuses(sources: Sources): HomeFieldDataStatu
   const satelliteDate = dayLabel(satellite.latestDate);
   const satelliteRecent = satellite.quality === 'usable' && isRecentSatelliteObservation(satellite.latestDate);
   const reportDate = dayLabel(soil.reportDate);
-  const evidenceSuffix = irrigationEvidenceSuffix(irrigation.evidenceStatus);
+  const projectedEvidenceStatus = readHomeDualKcEvidenceSnapshot().status;
+  const evidenceSuffix = irrigationEvidenceSuffix(
+    irrigation.evidenceStatus ?? projectedEvidenceStatus,
+  );
 
   return [
     {
