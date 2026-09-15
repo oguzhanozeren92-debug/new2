@@ -1,5 +1,7 @@
 import { supabase } from '../../../supabaseClient';
 
+const FIELD_TIME_ZONE = 'Europe/Istanbul';
+
 type DailyKcInput = {
   fieldId: string;
   calculatedAt: string;
@@ -11,7 +13,18 @@ type DailyKcInput = {
   sourceLabel: string;
 };
 
-/** Save a real calculation on its UTC date; never fill previous days. */
+function fieldDate(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: FIELD_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+/** Save a real calculation on its Turkey field date; never backfill previous days. */
 export async function saveDailyKcSnapshot(input: DailyKcInput): Promise<void> {
   if (!supabase) throw new Error('Supabase bağlantısı yok.');
 
@@ -34,7 +47,7 @@ export async function saveDailyKcSnapshot(input: DailyKcInput): Promise<void> {
     .upsert({
       user_id: authData.user.id,
       field_id: input.fieldId,
-      snapshot_date: calculatedAt.toISOString().slice(0, 10),
+      snapshot_date: fieldDate(calculatedAt),
       kc,
       crop_name: input.cropName.trim(),
       phenology_stage: input.stage.trim(),
