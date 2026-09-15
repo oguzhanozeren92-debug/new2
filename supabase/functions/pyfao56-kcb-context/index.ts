@@ -7,6 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+const FIELD_TIME_ZONE = 'Europe/Istanbul';
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -34,6 +36,17 @@ function normalizeText(value: unknown) {
     .trim()
     .toLocaleLowerCase('tr-TR')
     .replace(/\s+/g, ' ');
+}
+
+function fieldDate(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: FIELD_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
 }
 
 function normalizeSubtype(value: unknown): 'table' | 'wine' | null {
@@ -156,7 +169,7 @@ Deno.serve(async (req: Request) => {
     if (fieldError) throw fieldError;
     if (!field) return json({ ok: false, error: 'Tarla bulunamadı veya kullanıcıya ait değil.' }, 404);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = fieldDate();
 
     const [profilesResult, snapshotResult, observationsResult] = await Promise.all([
       serviceClient
@@ -244,15 +257,9 @@ Deno.serve(async (req: Request) => {
     if (!authoritativeObservation && !automaticStage) missingInputs.push('current_phenology_stage');
 
     const warnings: string[] = [];
-    if (stageDisagreement) {
-      warnings.push('model_stage_disagrees_with_field_observation');
-    }
-    if (hasConflictingObservations) {
-      warnings.push('multiple_distinct_field_growth_stages_recorded_for_today');
-    }
-    if (hasInvalidObservation) {
-      warnings.push('non_canonical_field_growth_stage_recorded_for_today');
-    }
+    if (stageDisagreement) warnings.push('model_stage_disagrees_with_field_observation');
+    if (hasConflictingObservations) warnings.push('multiple_distinct_field_growth_stages_recorded_for_today');
+    if (hasInvalidObservation) warnings.push('non_canonical_field_growth_stage_recorded_for_today');
 
     const status = validated
       ? 'validated'
@@ -267,6 +274,8 @@ Deno.serve(async (req: Request) => {
       field_id: fieldId,
       production_authority: false,
       input_authority: 'server-derived',
+      field_time_zone: FIELD_TIME_ZONE,
+      evidence_date: today,
       status,
       validated,
       crop_key: profile?.crop_key ?? null,
