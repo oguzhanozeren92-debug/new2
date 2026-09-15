@@ -84,6 +84,7 @@ async function synchronizeGeneratedTasks(fieldId: string) {
   const results = await Promise.allSettled([
     supabase.rpc('tp_sync_field_tasks', { p_field_id: fieldId }),
     supabase.rpc('tp_sync_model_readiness_tasks', { p_field_id: fieldId }),
+    supabase.rpc('tp_sync_irrigation_evidence_tasks', { p_field_id: fieldId }),
     supabase.rpc('tp_sync_growth_stage_observation_task', { p_field_id: fieldId }),
     supabase.rpc('tp_sync_irrigation_amount_task', { p_field_id: fieldId }),
     supabase.rpc('tp_refresh_action_tasks', { p_field_id: fieldId }),
