@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from aquacrop_runner import AquaCropPilotRequest, run_aquacrop_pilot
 from engine_registry import ENGINE_REGISTRY
+from pcse_runner import PCSEPhenologyPilotRequest, run_pcse_phenology_pilot
 
 MAX_FIELD_ID_LENGTH = 128
 MAX_SHADOW_DAYS = 14
@@ -20,7 +21,7 @@ IS_DEVELOPMENT = os.getenv("MODEL_GATEWAY_ENV", "production").strip().lower() ==
 
 app = FastAPI(
     title="TarlaPusula Model Gateway",
-    version="0.3.0",
+    version="0.4.0",
     docs_url="/docs" if IS_DEVELOPMENT else None,
     redoc_url="/redoc" if IS_DEVELOPMENT else None,
     openapi_url="/openapi.json" if IS_DEVELOPMENT else None,
@@ -60,11 +61,10 @@ class EngineReadinessRequest(GatewayModel):
 
 
 REQUIRED_PCSE_INPUTS = {
+    "field_location",
     "daily_weather",
     "crop_parameters",
-    "soil_parameters",
-    "site_parameters",
-    "agromanagement",
+    "planting_date",
 }
 
 REQUIRED_AQUACROP_INPUTS = {
@@ -216,9 +216,18 @@ def _delta_pct(reference: float, candidate: float) -> float | None:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    pyfao56 = _module_status("pyfao56")
+    engine_statuses = {
+        "pyfao56": _module_status("pyfao56"),
+        "pcse": _module_status("pcse"),
+        "aquacrop": _module_status("aquacrop"),
+    }
+    enabled_engines = [
+        name
+        for name in engine_statuses
+        if ENGINE_REGISTRY.get(name, {}).get("rollout") in {"shadow", "pilot", "production"}
+    ]
     auth_configured = _auth_configured()
-    ready = bool(pyfao56["available"]) and auth_configured
+    ready = auth_configured and all(engine_statuses[name]["available"] for name in enabled_engines)
     return {
         "ok": ready,
         "ready": ready,
@@ -228,11 +237,8 @@ def health() -> dict[str, Any]:
         "auth_required": _auth_required(),
         "auth_configured": auth_configured,
         "production_authority": False,
-        "engines": {
-            "pyfao56": pyfao56,
-            "pcse": _module_status("pcse"),
-            "aquacrop": _module_status("aquacrop"),
-        },
+        "enabled_engines": enabled_engines,
+        "engines": engine_statuses,
     }
 
 
@@ -391,6 +397,22 @@ def pcse_readiness(
 ) -> dict[str, Any]:
     _authorize(x_model_gateway_key)
     return _readiness("pcse", payload, REQUIRED_PCSE_INPUTS)
+
+
+@app.post("/v1/phenology/pcse/pilot")
+def pcse_phenology_pilot(
+    payload: PCSEPhenologyPilotRequest,
+    x_model_gateway_key: str | None = Header(default=None),
+) -> dict[str, Any]:
+    _authorize(x_model_gateway_key)
+    if ENGINE_REGISTRY["pcse"]["rollout"] not in {"pilot", "production"}:
+        raise HTTPException(status_code=409, detail="PCSE pilot rollout is disabled")
+    try:
+        return run_pcse_phenology_pilot(payload)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"PCSE phenology pilot failed: {exc}") from exc
 
 
 @app.post("/v1/scenario/aquacrop/readiness")
