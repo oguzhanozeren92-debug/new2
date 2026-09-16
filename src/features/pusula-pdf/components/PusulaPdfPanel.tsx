@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { getOrCreateWeeklyPusulaReport } from '../services/pusulaPdfData.service';
 import type { WeeklyPusulaReport } from '../types';
 
-type Props={fieldId:string;fieldName:string};
+type Props={fieldId:string;fieldName?:string};
 const LABELS:Record<string,string>={parcel_geometry:'Parsel geometrisi',satellite_30d:'30 günlük uydu serisi',weather:'Hava geçmişi',activities:'Tarla işlemleri',soil_analysis:'Toprak analizi',resolved_diagnosis:'Tamamlanmış Pusula teşhisi',irrigation_kc:'Sulama / fenoloji kaydı'};
 export function PusulaPdfPanel({fieldId,fieldName}:Props){
  const [report,setReport]=useState<WeeklyPusulaReport|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState('');
  const run=async()=>{setLoading(true);setError('');try{setReport(await getOrCreateWeeklyPusulaReport(fieldId));}catch(e){setError(e instanceof Error?e.message:'PUSULAPDF hazırlanamadı.');}finally{setLoading(false);}};
- const s=report?.report_data;
- return <section style={{background:'#fff',border:'1px solid #e5e5e5',borderRadius:20,padding:18,color:'#111'}}>
-  <div style={{fontSize:12,color:'#777',fontWeight:700}}>PUSULAPDF · PREMIUM</div><h2 style={{margin:'5px 0 3px'}}>{fieldName} Haftalık Raporu</h2>
+ const s=report?.report_data; const title=s?.field.name||fieldName||'Seçili Tarla';
+ return <section style={{background:'#fff',border:'1px solid #e5e5e5',borderRadius:20,padding:18,color:'#111',marginTop:14}}>
+  <div style={{fontSize:12,color:'#777',fontWeight:700}}>PUSULAPDF · PREMIUM</div><h2 style={{margin:'5px 0 3px'}}>{title} Haftalık Raporu</h2>
   <p style={{margin:'0 0 14px',fontSize:13,color:'#666'}}>Gerçek tarla verileri haftalık snapshot olarak hazırlanır. Aynı hafta yeniden hesaplanmaz.</p>
   {!report&&<button onClick={run} disabled={loading} style={{width:'100%',padding:13,border:0,borderRadius:14,background:'#111',color:'#fff',fontWeight:800}}>{loading?'Pusula verileri topluyor…':'Haftalık Raporu Hazırla'}</button>}
   {error&&<p style={{fontSize:12,color:'#b42318'}}>{error}</p>}
