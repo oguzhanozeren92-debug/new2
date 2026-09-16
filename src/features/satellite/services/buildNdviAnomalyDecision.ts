@@ -31,9 +31,10 @@ export function buildNdviAnomalyDecision(
     deviation != null ? `Son gözlem tarla baz medyanından ${Math.abs(deviation).toFixed(3)} NDVI daha düşük.` : '',
     score != null ? `Robust anomali skoru: ${score.toFixed(2)}.` : '',
   ].filter(Boolean);
+  const period = signal.latestDate ?? now.toISOString().slice(0, 10);
 
   return {
-    id: `satellite:${fieldId}:ndvi-negative-anomaly:${signal.latestDate ?? 'latest'}`,
+    id: `satellite:${fieldId}:ndvi-negative-anomaly:${period}`,
     group: 'satellite-anomaly',
     source: 'satellite',
     priority: 92,
@@ -42,8 +43,27 @@ export function buildNdviAnomalyDecision(
     channels: ['today', 'notification', 'pusula'],
     label: 'UYDU UYARISI',
     title: 'NDVI Anomalisi Tespit Edildi',
-    detail: 'Son uydu gözlemi tarlanın kendi yakın geçmişinden belirgin biçimde düşük. Haritadaki alanları sahada kontrol et; bu sinyal tek başına hastalık, su veya besin eksikliği teşhisi değildir.',
+    detail: 'Son uydu gözlemi tarlanın kendi yakın geçmişinden belirgin biçimde düşük. Tarlayı kontrol et ve mümkünse sorun gördüğün alanın fotoğrafını çek. Fotoğraf saha kanıtı olarak uydu kaydıyla birlikte saklanır; bu sinyal tek başına hastalık, su veya besin eksikliği teşhisi değildir.',
     evidence,
+    task: {
+      taskKey: `ndvi-anomaly-photo:${period}`,
+      actionTarget: 'field-photo',
+      rewardPoints: 0,
+      rewardRuleKey: null,
+      metadata: {
+        source: 'ndvi_anomaly',
+        direction: 'tarla-geneli',
+        importantArea: { area: 'Tarla geneli' },
+        satelliteDate: signal.latestDate,
+        latestNdvi: signal.latestAverage,
+        baselineMedian: signal.baselineMedian,
+        robustScore: signal.robustScore,
+        observationCount: signal.observationCount,
+        spanDays: signal.spanDays,
+        requestPhoto: true,
+        photoGuidance: 'Sorun gördüğün bölgeden yakın plan, bitkinin genel görünümü ve alan/toprak çevresi fotoğrafı çek.',
+      },
+    },
     today: { tone: 'amber', visual: 'spraying', iconKey: 'leaf-green', iconClass: 'leaf' },
     notification: { iconKey: 'leaf', iconTone: 'green', dotTone: 'warning' },
   };
