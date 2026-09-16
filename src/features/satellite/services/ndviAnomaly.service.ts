@@ -1,20 +1,6 @@
 import { supabase } from '../../../supabaseClient';
 import type { NdviTimeSeriesPoint } from '../types/ndviTimeSeries';
-
-export type NdviAnomalyResult = {
-  quality: 'insufficient' | 'usable';
-  anomaly: boolean;
-  direction: 'unknown' | 'negative' | 'positive' | 'none';
-  latestDate: string | null;
-  latestAverage: number | null;
-  baselineMedian: number | null;
-  deviation: number | null;
-  mad: number | null;
-  robustScore: number | null;
-  observationCount: number;
-  spanDays: number | null;
-  reason: string;
-};
+import type { NdviAnomalyResult } from '../types/ndviAnomaly';
 
 export async function analyzeNdviAnomaly(points: NdviTimeSeriesPoint[]): Promise<NdviAnomalyResult> {
   const evidence = points
