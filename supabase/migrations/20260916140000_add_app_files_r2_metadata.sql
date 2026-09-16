@@ -30,55 +30,17 @@ create index if not exists app_files_user_category_idx
 
 alter table public.app_files enable row level security;
 
+-- The client can only list/read its own metadata. All mutations go through
+-- the authenticated r2-files Edge Function, which uses the service role only
+-- on the server and scopes every operation to the authenticated user id.
 create policy "authenticated can select own app files"
   on public.app_files
   for select
   to authenticated
   using ((select auth.uid()) = user_id);
 
-create policy "authenticated can insert own app files"
-  on public.app_files
-  for insert
-  to authenticated
-  with check (
-    (select auth.uid()) = user_id
-    and (
-      field_id is null
-      or exists (
-        select 1
-        from public.fields f
-        where f.id = field_id
-          and f.user_id = (select auth.uid())
-      )
-    )
-  );
-
-create policy "authenticated can update own app files"
-  on public.app_files
-  for update
-  to authenticated
-  using ((select auth.uid()) = user_id)
-  with check (
-    (select auth.uid()) = user_id
-    and (
-      field_id is null
-      or exists (
-        select 1
-        from public.fields f
-        where f.id = field_id
-          and f.user_id = (select auth.uid())
-      )
-    )
-  );
-
-create policy "authenticated can delete own app files"
-  on public.app_files
-  for delete
-  to authenticated
-  using ((select auth.uid()) = user_id);
-
-revoke all on table public.app_files from anon;
-grant select, insert, update, delete on table public.app_files to authenticated;
+revoke all on table public.app_files from anon, authenticated;
+grant select on table public.app_files to authenticated;
 
 alter table public.ai_image_analysis_jobs
   add column if not exists storage_provider text not null default 'cloudflare_r2';
