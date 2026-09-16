@@ -81,21 +81,22 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const authorization = req.headers.get('Authorization') ?? '';
   const token = authorization.replace(/^Bearer\s+/i, '').trim();
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !serviceRoleKey) {
     return json({ error: 'Supabase sunucu yapılandırması eksik.' }, 500);
   }
   if (!token) return json({ error: 'Oturum gerekli.' }, 401);
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authorization } },
-    auth: { persistSession: false },
+  // Service role never leaves this server-side Edge Function. The caller is
+  // authenticated first and every metadata query is explicitly user-scoped.
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
+  const { data: userData, error: userError } = await admin.auth.getUser(token);
   if (userError || !userData.user) {
     return json({ error: 'Geçersiz oturum.' }, 401);
   }
@@ -118,10 +119,11 @@ Deno.serve(async (req) => {
       validateFile(mimeType, sizeBytes);
 
       if (fieldId) {
-        const { data: field, error: fieldError } = await supabase
+        const { data: field, error: fieldError } = await admin
           .from('fields')
           .select('id')
           .eq('id', fieldId)
+          .eq('user_id', userId)
           .maybeSingle();
         if (fieldError) throw fieldError;
         if (!field) throw new Error('Bu tarlaya dosya ekleme yetkin yok.');
@@ -135,7 +137,7 @@ Deno.serve(async (req) => {
         `${crypto.randomUUID()}-${safeFileName(originalName)}`,
       ].join('/');
 
-      const { data: fileRow, error: insertError } = await supabase
+      const { data: fileRow, error: insertError } = await admin
         .from('app_files')
         .insert({
           user_id: userId,
@@ -163,10 +165,11 @@ Deno.serve(async (req) => {
           expiresIn: 600,
         });
       } catch (error) {
-        await supabase
+        await admin
           .from('app_files')
           .update({ status: 'failed', updated_at: new Date().toISOString() })
-          .eq('id', fileRow.id);
+          .eq('id', fileRow.id)
+          .eq('user_id', userId);
         throw error;
       }
     }
@@ -175,7 +178,7 @@ Deno.serve(async (req) => {
       const fileId = String(body?.fileId ?? '').trim();
       if (!fileId) throw new Error('fileId gerekli.');
 
-      const { data: fileRow, error: readError } = await supabase
+      const { data: fileRow, error: readError } = await admin
         .from('app_files')
         .select('*')
         .eq('id', fileId)
@@ -189,15 +192,16 @@ Deno.serve(async (req) => {
       if (actualSize <= 0) throw new Error('R2 yüklemesi doğrulanamadı.');
       if (actualSize !== Number(fileRow.size_bytes)) {
         await deleteR2Object(fileRow.object_key).catch(() => undefined);
-        await supabase
+        await admin
           .from('app_files')
           .update({ status: 'failed', updated_at: new Date().toISOString() })
-          .eq('id', fileId);
+          .eq('id', fileId)
+          .eq('user_id', userId);
         throw new Error('Yüklenen dosyanın boyutu beklenen değerle uyuşmuyor.');
       }
 
       const now = new Date().toISOString();
-      const { data: ready, error: updateError } = await supabase
+      const { data: ready, error: updateError } = await admin
         .from('app_files')
         .update({ status: 'ready', uploaded_at: now, updated_at: now })
         .eq('id', fileId)
@@ -212,7 +216,7 @@ Deno.serve(async (req) => {
       const objectKey = String(body?.objectKey ?? '').trim();
       if (!objectKey) throw new Error('objectKey gerekli.');
 
-      const { data: fileRow, error: readError } = await supabase
+      const { data: fileRow, error: readError } = await admin
         .from('app_files')
         .select('id,object_key,mime_type,original_name,status')
         .eq('user_id', userId)
@@ -233,7 +237,7 @@ Deno.serve(async (req) => {
       if (!objectKeys.length) return json({ files: [] });
       if (objectKeys.length > MAX_BATCH) throw new Error(`Tek istekte en fazla ${MAX_BATCH} dosya açılabilir.`);
 
-      const { data: rows, error: readError } = await supabase
+      const { data: rows, error: readError } = await admin
         .from('app_files')
         .select('id,object_key,mime_type,original_name,status')
         .eq('user_id', userId)
@@ -254,7 +258,7 @@ Deno.serve(async (req) => {
       const objectKey = String(body?.objectKey ?? '').trim();
       if (!objectKey) throw new Error('objectKey gerekli.');
 
-      const { data: fileRow, error: readError } = await supabase
+      const { data: fileRow, error: readError } = await admin
         .from('app_files')
         .select('id,object_key,status')
         .eq('user_id', userId)
@@ -265,7 +269,7 @@ Deno.serve(async (req) => {
 
       await deleteR2Object(fileRow.object_key);
       const now = new Date().toISOString();
-      const { error: updateError } = await supabase
+      const { error: updateError } = await admin
         .from('app_files')
         .update({ status: 'deleted', deleted_at: now, updated_at: now })
         .eq('id', fileRow.id)
