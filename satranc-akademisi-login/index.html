@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a1b2b"><title>Satranç Akademisi · Giriş</title><style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(ellipse at top,#24445c,#071524 75%);color:#ffe8bd}
+body{min-height:100svh;display:grid;place-items:center;padding:calc(18px + env(safe-area-inset-top)) 17px calc(20px + env(safe-area-inset-bottom))}
+.panel{width:min(430px,100%);background:linear-gradient(140deg,#1c3c50,#0d2436);border:1px solid #c9a16e;box-shadow:0 17px 36px #0009;border-radius:22px;padding:27px 22px;text-align:center}
+.queen{font:51px Georgia,serif;color:#f6d092}.label{font-size:11px;font-weight:900;color:#d8b37c;letter-spacing:1.5px;margin-top:8px}
+h1{font:700 30px/1.15 Georgia,serif;margin:15px 0;color:#f8d59c}
+p{font-size:13px;line-height:1.55;color:#acbfca}
+input{width:100%;height:54px;border-radius:12px;border:1px solid #bf9360;background:#0a2032;color:#fff1df;font-size:18px;padding:0 14px;outline:0;margin:14px 0 5px}
+input:focus{box-shadow:0 0 0 2px #e9c48455}
+.levels{display:grid;gap:9px;margin:14px 0 19px}
+button{cursor:pointer;font:700 15px system-ui;-webkit-tap-highlight-color:transparent}
+.level{border:1px solid #735f48;border-radius:11px;padding:12px 8px;color:#f7e3c4;background:#193749}
+.level[aria-pressed="true"]{color:#352313;background:linear-gradient(125deg,#f9dda9,#bf8b4d);border-color:#f9d8a3}
+.submit{width:100%;padding:14px;border:1px solid #ffe2aa;border-radius:12px;background:linear-gradient(125deg,#f8dcaa,#c69655);color:#302114}
+.guest{display:block;width:100%;border:0;background:transparent;color:#b7cad5;margin-top:17px;font-size:13px;text-decoration:underline}
+#error{font-size:13px;color:#ffaaa4;min-height:23px;margin:8px 0 0}
+</style></head><body><main class="panel"><div class="queen">♛</div><div class="label">SATranç AKADEMİSİ</div><h1>Satranç yolculuğun başlıyor</h1><p>Rumuzunu yaz, seviyeni seç ve uygulamalı derslere geç. E-posta istemiyoruz.</p>
+<form id="form" novalidate><input type="text" id="nick" aria-label="Rumuzun" placeholder="Oyuncu rumuzun" maxlength="20" autocomplete="nickname">
+<div class="levels" role="group" aria-label="Satranç seviyen"><button type="button" class="level" aria-pressed="true" data-level="Yeni başlıyorum">Yeni başlıyorum</button>
+<button type="button" class="level" aria-pressed="false" data-level="Biraz biliyorum">Biraz biliyorum</button>
+<button type="button" class="level" aria-pressed="false" data-level="İyi biliyorum">İyi biliyorum</button></div>
+<button class="submit" type="submit">Öğrenmeye Başla →</button><p id="error" role="alert"></p></form>
+<button class="guest" type="button" id="guest">Girişte sorun mu var? Misafir olarak devam et</button>
+<p>Profil ve ilerleme şu an yalnızca bu tarayıcıda saklanır.</p></main>
+<script>
+(function(){
+"use strict";
+const KEY="satranc-akademisi-v1", field=document.getElementById("nick"), err=document.getElementById("error");
+let level="Yeni başlıyorum";
+function readProfile(){try{return JSON.parse(localStorage.getItem(KEY)||"{}")||{}}catch(e){return {}}}
+const current=readProfile();
+if(typeof current.nick==="string"&&current.nick.trim().length>=3){location.replace("/uygulama");return}
+if(typeof current.nick==="string")field.value=current.nick;
+function storeAndGo(nick){
+ const profile=Object.assign({nick:"",level, xp:0,done:[],puzzlesDone:[],streakDay:"",streak:0},readProfile());
+ profile.nick=nick;profile.level=level;
+ try{localStorage.setItem(KEY,JSON.stringify(profile))}catch(e){err.textContent="Tarayıcı depolama engellendi. Safari'de özel moddan çıkıp tekrar deneyebilirsin.";return}
+ location.assign("/uygulama");
+}
+document.querySelectorAll("[data-level]").forEach(b=>b.addEventListener("click",()=>{
+  level=b.getAttribute("data-level");
+  document.querySelectorAll("[data-level]").forEach(el=>el.setAttribute("aria-pressed",String(el===b)));
+  // Never redraw the input: keep the nickname while selecting a level.
+  err.textContent="";
+}));
+field.addEventListener("input",()=>err.textContent="");
+document.getElementById("form").addEventListener("submit",e=>{
+ e.preventDefault();
+ let nick=field.value.trim();
+ if([...nick].length<3||[...nick].length>20){err.textContent="Rumuz 3–20 karakter olmalı.";field.focus();return}
+ storeAndGo(nick);
+});
+document.getElementById("guest").addEventListener("click",()=>{
+ const a=new Uint32Array(1);if(window.crypto?.getRandomValues)window.crypto.getRandomValues(a);
+ storeAndGo("Misafir"+String(a[0]||Math.floor(Math.random()*999999)).slice(-6));
+});
+})();
+</script></body></html>
