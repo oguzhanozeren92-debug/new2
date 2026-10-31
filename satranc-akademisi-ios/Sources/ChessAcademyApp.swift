@@ -302,8 +302,9 @@ struct AcademyProfileView: View {
                     LabeledContent("Tamamlanan ders", value: "\(completed.split(separator: ",").count)")
                 }
                 Section("Gizlilik ve Destek") {
-                    Button("Gizlilik bilgileri") { showPrivacy = true }
-                    Link("Destek e-postası", destination: URL(string: "mailto:oguzhanozeren92@gmail.com")!)
+                    Link("Gizlilik Politikası", destination: URL(string: "https://github.com/oguzhanozeren92-debug/new2/blob/main/satranc-akademisi-ios/GIZLILIK_POLITIKASI.md")!)
+                    Link("Destek ve İletişim", destination: URL(string: "https://github.com/oguzhanozeren92-debug/new2/blob/main/satranc-akademisi-ios/DESTEK.md")!)
+                    Button("Cihazdaki veri kullanımı") { showPrivacy = true }
                 }
                 Section {
                     Button("Yerel ilerlemeyi ve profili sil", role: .destructive) { confirmErase = true }
