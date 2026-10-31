@@ -1,0 +1,40 @@
+name: SatrancAkademisi
+options:
+  bundleIdPrefix: com.oguzhanozeren92
+  deploymentTarget:
+    iOS: '17.0'
+  minimumXcodeGenVersion: '2.40.0'
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: '5.9'
+    IPHONEOS_DEPLOYMENT_TARGET: '17.0'
+    TARGETED_DEVICE_FAMILY: '1'
+    SUPPORTS_MACCATALYST: NO
+    CODE_SIGN_STYLE: Automatic
+packages:
+  ChessboardKit:
+    url: https://github.com/rohanrhu/ChessboardKit.git
+    from: '1.0.0'
+  ChessKit:
+    url: https://github.com/aperechnev/ChessKit.git
+    from: '1.3.7'
+targets:
+  SatrancAkademisi:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Resources/Assets.xcassets
+    dependencies:
+      - package: ChessboardKit
+      - package: ChessKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oguzhanozeren92.satrancakademisi
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: 'Satranç Akademisi'
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: '1.0.0'
+        CURRENT_PROJECT_VERSION: '1'
