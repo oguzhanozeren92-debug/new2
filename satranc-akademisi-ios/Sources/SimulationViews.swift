@@ -7,71 +7,109 @@ struct SimulationHubView: View {
     @AppStorage("academy.scenarios.completed") private var completed = ""
 
     var body: some View {
-        List {
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("SATRAÇ SİMÜLATÖRÜ", systemImage: "checkerboard.rectangle")
-                        .font(.caption.weight(.heavy))
-                        .foregroundStyle(Theme.gold)
-                    Text("Hikâyeyi oku. Tahtada karar ver. Hamle Hocası sana nedenini anlatsın.")
-                        .font(.headline)
-                    Text("Hata yapabilirsin: her yasal hamleni analiz ederiz. Hikâyeden ayrılırsan maç serbest devam eder. Her hamleyi geri alabilir ve raporda inceleyebilirsin.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 8)
-            }
-
-            Section("Önce bunlarla başla") {
-                ForEach(ChessScenario.all.filter { !$0.isFreePlay }) { scenario in
-                    NavigationLink {
-                        SimulationSessionView(scenario: scenario)
-                    } label: {
-                        scenarioRow(scenario)
+        ZStack {
+            PremiumBackdrop()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 15) {
+                    PremiumPanel(accent: true) {
+                        HStack(spacing: 15) {
+                            ChessPieceBadge(piece: .knight, size: 76, highlighted: true)
+                            VStack(alignment: .leading, spacing: 7) {
+                                Text("HAMLE HOCASI SUNAR")
+                                    .font(.system(size: 10, weight: .heavy))
+                                    .tracking(1.7)
+                                    .foregroundStyle(Theme.gold)
+                                Text("Senaryolu Satranç")
+                                    .font(.system(.title2, design: .serif, weight: .bold))
+                                    .foregroundStyle(Theme.cream)
+                                Text("Bir hikâyenin içindesin: düşün, oynat, analiz et.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.pale)
+                            }
+                        }
                     }
-                }
-            }
 
-            Section("Öğrendiklerini dene") {
-                ForEach(ChessScenario.all.filter(\.isFreePlay)) { scenario in
-                    NavigationLink {
-                        SimulationSessionView(scenario: scenario)
-                    } label: {
-                        scenarioRow(scenario)
+                    PremiumSectionHeading(title: "Hikâyeni Seç",
+                                          eyebrow: "BAŞLANGIÇTAN İLK MATA",
+                                          count: "6 senaryo")
+                    ForEach(Array(ChessScenario.all.filter { !$0.isFreePlay }.enumerated()),
+                            id: \.element.id) { index, scenario in
+                        NavigationLink {
+                            SimulationSessionView(scenario: scenario)
+                        } label: {
+                            scenarioCard(scenario, number: index + 1)
+                        }
+                        .buttonStyle(.plain)
                     }
-                }
-            }
 
-            Section {
-                Text("Koç, ChessKit kurallarıyla şah, mat, taş alma, tehdit ve temel açılış ilkelerini açıklar. Bu sürüm derin motor analizi veya Stockfish'in 'en iyi hamle' değerlendirmesi değildir.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    PremiumSectionHeading(title: "Koçlu Serbest Maç",
+                                          eyebrow: "ÖĞRENDİKLERİNİ DENE")
+                        .padding(.top, 8)
+                    ForEach(ChessScenario.all.filter(\.isFreePlay)) { scenario in
+                        NavigationLink {
+                            SimulationSessionView(scenario: scenario)
+                        } label: {
+                            scenarioCard(scenario, number: 7)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Text("Koç hamlelerin yasal olup olmadığını, şah/mat durumlarını ve kısa vadeli tehditleri açıklar. Derin motor analizi değildir.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.pale)
+                        .padding(.horizontal, 4)
+                }
+                .padding(16)
+                .frame(maxWidth: 720)
+                .frame(maxWidth: .infinity)
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Theme.background)
-        .navigationTitle("Senaryolu Simülasyon")
+        .navigationTitle("Simülasyon")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func scenarioRow(_ scenario: ChessScenario) -> some View {
-        HStack(spacing: 13) {
-            Image(systemName: scenario.isFreePlay ? "cpu.fill" : "theatermasks.fill")
-                .font(.title2).foregroundStyle(Theme.gold)
-                .frame(width: 40)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(scenario.title).font(.headline)
-                Text(scenario.difficulty + " · " + scenario.mission)
-                    .font(.caption).foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            Spacer(minLength: 2)
-            if completed.split(separator: ",").contains(Substring(scenario.id)) {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(.green)
-                    .accessibilityLabel("Tamamlandı")
+    private func piece(for id: String) -> PremiumChessPiece {
+        switch id {
+        case "ilk-mini-mac": return .pawn
+        case "piyon-kurtarma": return .rook
+        case "sah-tehlikede": return .king
+        case "at-catal": return .knight
+        case "korunan-at": return .bishop
+        case "ilk-mat": return .queen
+        default: return .king
+        }
+    }
+
+    private func scenarioCard(_ scenario: ChessScenario, number: Int) -> some View {
+        PremiumPanel(accent: scenario.isFreePlay) {
+            HStack(alignment: .center, spacing: 13) {
+                ChessPieceBadge(piece: piece(for: scenario.id),
+                                size: 62, highlighted: scenario.isFreePlay)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(String(format: "%02d · ", number) + scenario.difficulty.uppercased())
+                            .font(.system(size: 10, weight: .heavy))
+                            .tracking(0.7)
+                            .foregroundStyle(Theme.gold)
+                        if completed.split(separator: ",").contains(Substring(scenario.id)) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundStyle(Theme.warmGreen)
+                                .accessibilityLabel("Tamamlandı")
+                        }
+                    }
+                    Text(scenario.title)
+                        .font(.system(.headline, design: .serif))
+                        .foregroundStyle(Theme.cream)
+                    Text(scenario.mission)
+                        .font(.caption)
+                        .foregroundStyle(Theme.pale)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Theme.gold)
             }
         }
-        .padding(.vertical, 7)
-        .frame(minHeight: 55)
     }
 }
 
