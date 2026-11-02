@@ -62,7 +62,14 @@ struct AcademyCourse: Identifiable {
                 ("f1c4", "İtalyan Açılışı kuruldu.")
             ])
         ]),
-        AcademyCourse(id: "acilislar", title: "4. Açılış Akademisi", summary: "Lichess CC0 açılış verilerinden seçilmiş 11 gerçek açılışı tahtada uygula.", symbol: "book.closed.fill", lessons: [
+        AcademyCourse(id: "taktikler", title: "4. Taktik Akademisi", summary: "Çatal, açmaz, şiş, keşif saldırısı ve çifte şah: önce gör, sonra uygula.", symbol: "scope", lessons: [
+            TrainingLesson("taktik-catal", "At Çatalı", "Çatalda tek taşın aynı anda iki rakip hedefe saldırır. Burada siyahın şahı g8'de, veziri d7'de. Atını ikisine de bakacak kareye götür.", "Beyaz atı e4'ten f6'ya götür. Şah çekip aynı anda veziri tehdit et.", "6k1/3q4/8/8/4N3/8/8/7K w - - 0 1", [("e4f6", "At f6'da şah çekerken d7'deki vezire de saldırıyor. İşte çatal!")]),
+            TrainingLesson("taktik-acmaz", "Fil ile Açmaz", "Açmazda öndeki taş kıpırdarsa arkasındaki şah veya değerli taş açığa çıkar. b5'e gelince filin, c6 atını siyah şahın önünde tutacak.", "Beyaz fili c4'ten b5'e taşı.", "4k3/8/2n5/8/2B5/8/8/7K w - - 0 1", [("c4b5", "Siyah at c6'dan ayrılırsa e8'deki şah fil tarafından tehdit edilir; at açmazda!")]),
+            TrainingLesson("taktik-sis", "Fil ile Şiş", "Şişte önce daha değerli taşa saldırılır, bu taş kaçınca arkasındaki başka taş açığa çıkar. d5'te şah, f7'de kale var.", "Fili c2'den b3'e taşı ve şahın arkasındaki kaleyi gör.", "8/5r2/8/3k4/8/8/2B5/7K w - - 0 1", [("c2b3", "Fil b3'ten d5 şahına bakıyor; şah kaçınca aynı çaprazdaki f7 kalesi hedef olabilir.")]),
+            TrainingLesson("taktik-kesif", "Keşif Saldırısı", "e1 kalesinin önünde kendi atın duruyor. At başka kareye gidince kale e7'deki vezire saldırabilecek.", "Atı e4'ten d6'ya götür.", "2k5/4q3/8/8/4N3/8/8/4R2K w - - 0 1", [("e4d6", "At d6'da şah çekiyor, ayrıca e1 kalesinin yolu açılıp e7 veziri hedef oluyor.")]),
+            TrainingLesson("taktik-cifte-sah", "Çifte Şah", "Tek hamlede iki ayrı taş şah çeker. e2'deki fil kalkınca e1 kalesinin yolu açılacak; filin kendisi de şahı hedeflemeli.", "Fili e2'den b5'e taşı.", "4k3/8/8/8/8/8/4B3/4R2K w - - 0 1", [("e2b5", "Hem b5'teki fil hem e1'deki kale e8 şahına saldırıyor. Bu bir çifte şah!")])
+        ]),
+        AcademyCourse(id: "acilislar", title: "5. Açılış Akademisi", summary: "Lichess CC0 açılış verilerinden seçilmiş 11 gerçek açılışı tahtada uygula.", symbol: "book.closed.fill", lessons: [
             TrainingLesson("sicilya", "Sicilya Savunması", "ECO B20. Siyah, 1.e4'e ...c5 ile asimetrik karşılık verir. Temel fikir d4 karesini kontrol etmektir.", "e4 oyna ve siyahın c5 yanıtını izle.", initial, [
                 ("e2e4", "Merkezde alan kazandın."),
                 ("c7c5", "Siyah c piyonu ile d4 karesine baskı hazırladı.")
@@ -122,7 +129,7 @@ struct AcademyCourse: Identifiable {
                 ("c2c4", "İngiliz Açılışı: c piyonu d5 karesini denetliyor.")
             ])
         ]),
-        AcademyCourse(id: "oyunsonu", title: "5. Oyun Sonu Temelleri", summary: "Şahı etkinleştir, geçer piyonları ve arka sıra matını tanı.", symbol: "flag.checkered", lessons: [
+        AcademyCourse(id: "oyunsonu", title: "6. Oyun Sonu Temelleri", summary: "Şahı etkinleştir, geçer piyonları ve arka sıra matını tanı.", symbol: "flag.checkered", lessons: [
             TrainingLesson("aktif-sah", "Şahı etkinleştir", "Oyun sonunda şah aktif bir taştır. Güvenli bir merkez karesine ilerlemek çoğu zaman işe yarar.", "e1 şahını d2'ye getir.", "7k/8/8/8/8/8/8/4K3 w - - 0 1", [("e1d2", "Şahın merkeze yaklaşıyor.")]),
             TrainingLesson("gecer-piyon", "Geçer piyonu ilerlet", "Önünde aynı ya da komşu dikeylerde rakip piyon bulunmayan piyon geçer piyondur.", "e4 piyonunu e5'e sür.", "7k/8/8/8/4P3/8/8/4K3 w - - 0 1", [("e4e5", "Geçer piyonu terfiye yaklaştırdın.")]),
             TrainingLesson("sah-destek", "Şahla piyonu destekle", "Şahını geçer piyonun yakınına getirerek ilerlemesini kolaylaştır.", "Şahı e2'den e3'e götür.", "7k/8/8/8/4P3/8/4K3/8 w - - 0 1", [("e2e3", "Şah ve piyon beraber ilerliyor.")]),
@@ -131,6 +138,11 @@ struct AcademyCourse: Identifiable {
     ]
 
     static let puzzles: [TrainingLesson] = [
+        TrainingLesson("puzzle-catal", "Çatalı Bul", "Tek hamlede iki değerli hedefi birden tehdit eden at hamlesini bul. Önce şah ve vezire bak.", "Atla şahı ve veziri aynı anda tehdit et.", "6k1/3q4/8/8/4N3/8/8/7K w - - 0 1", [("e4f6", "Harika! Bir at ile iki tehdit kurdun.")]),
+        TrainingLesson("puzzle-acmaz", "Açmazı Kur", "Siyah atın arkasındaki şahı fark et. Fili doğru çapraza taşı.", "Atı şahın önünde sabitleyen fil hamlesini bul.", "4k3/8/2n5/8/2B5/8/8/7K w - - 0 1", [("c4b5", "Doğru: c6 atı şahın önünde açmazda kaldı.")]),
+        TrainingLesson("puzzle-sis", "Şişi Bul", "Şah ile arkasındaki kalenin aynı çaprazda olacağı hamleyi ara.", "Önde şahı, arkada kaleyi hedefle.", "8/5r2/8/3k4/8/8/2B5/7K w - - 0 1", [("c2b3", "Şiş! Şah kaçınca arkasındaki kaleyi hedefliyorsun.")]),
+        TrainingLesson("puzzle-kesif", "Gizli Saldırıyı Aç", "Kale ve at aynı dikeyde. Kendi atını öyle taşı ki kale rakibin vezirine saldırsın.", "Kalenin saldırı hattını aç.", "2k5/4q3/8/8/4N3/8/8/4R2K w - - 0 1", [("e4d6", "Keşif saldırısı: atın şah çekti, kalen vezire saldırdı.")]),
+        TrainingLesson("puzzle-cifte-sah", "İki Taşla Şah", "Hem filin hem kalenin tek hamlede aynı şahı tehdit etmesini sağla.", "Çifte şah hamlesini bul.", "4k3/8/8/8/8/8/4B3/4R2K w - - 0 1", [("e2b5", "Çifte şah! Rakip şahı hareket ettirmeli.")]),
         TrainingLesson("puzzle-mat", "Tek Hamlede Mat", "Rakibin şahının kaçış karelerine bak.", "Vezirle g7'ye giderek mat yap.", "7k/5Q2/5K2/8/8/8/8/8 w - - 0 1", [("f7g7", "Mat hamlesini buldun.")]),
         TrainingLesson("puzzle-alma", "Piyonla Kazan", "Piyonun düz değil çapraz taş aldığını hatırla.", "d5'teki siyah piyonu al.", "k7/8/8/3p4/4P3/8/8/7K w - - 0 1", [("e4d5", "Doğru! Piyonla taş aldın.")]),
         TrainingLesson("puzzle-arka", "Arka Sıra Matı", "Kendi piyonlarının arkasına sıkışmış siyah şahı tek hamlede mat et.", "Kaleyi a8'e götürerek mat et.", "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1", [("a1a8", "Tebrikler! Arka sıra matı.")]),
