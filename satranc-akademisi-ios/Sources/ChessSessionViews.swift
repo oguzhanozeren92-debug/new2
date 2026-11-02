@@ -13,7 +13,8 @@ struct ChessLessonSession: View {
 
     init(lesson: TrainingLesson) {
         self.lesson = lesson
-        _boardModel = State(initialValue: ChessboardModel(fen: lesson.fen, perspective: .white))
+        _boardModel = State(initialValue: ChessboardModel(fen: lesson.fen, perspective: .white,
+                                                              colorScheme: PremiumBoardColors()))
     }
 
     var body: some View {
@@ -208,7 +209,8 @@ enum BotDifficulty: String, CaseIterable, Identifiable {
 
 struct ChessBotSession: View {
     let difficulty: BotDifficulty
-    @State private var boardModel = ChessboardModel(fen: AcademyCourse.initial, perspective: .white)
+    @State private var boardModel = ChessboardModel(fen: AcademyCourse.initial, perspective: .white,
+                                                        colorScheme: PremiumBoardColors())
     @State private var feedback = "Beyaz taşlar senin. İlk hamleni yap."
     @State private var thinking = false
     @State private var gameOver = false
