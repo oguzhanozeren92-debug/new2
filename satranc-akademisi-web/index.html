@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#091526">
+<title>Satranç Akademisi — Oyna ve Öğren</title>
+<style>
+:root{--bg:#081625;--surface:#11283d;--surface2:#19374b;--gold:#eac382;--cream:#f9eddb;--sub:#b3c5ce;--line:#47566a}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{background:radial-gradient(ellipse at top,#29455b 0,#081625 65%);overflow-x:hidden}
+button,input{font:inherit}button{cursor:pointer}button:disabled{opacity:.4;cursor:default}
+.shell{max-width:800px;margin:auto;min-height:100dvh;padding:16px 16px calc(95px + env(safe-area-inset-bottom))}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:5px 0 20px}.logo{display:flex;align-items:center;gap:12px}.logo i{display:grid;place-items:center;width:46px;height:46px;border:1px solid #cfa15b;border-radius:13px;background:#283144;font:32px Georgia;color:var(--gold);font-style:normal}.logo b{font:700 23px Georgia,serif}.muted{color:var(--sub)}.eyebrow{font-size:11px;letter-spacing:2px;font-weight:900;color:var(--gold)}.tag{border:1px solid #756344;border-radius:30px;padding:7px 10px;font-size:12px;color:var(--gold);white-space:nowrap}
+h1,h2{font-family:Georgia,serif}h1{font-size:32px;line-height:1.12;margin:10px 0}h2{margin:8px 0 15px;font-size:25px}p{line-height:1.55}.card{background:linear-gradient(140deg,#1c3c50,#10283b);border:1px solid #37536a;border-radius:20px;padding:19px;margin-bottom:13px}.hero{padding:23px;background:radial-gradient(circle at 95% 10%,#715b3c55,transparent 38%),linear-gradient(130deg,#1b3b50,#0c2437)}.hero .chess{font:64px Georgia;color:var(--gold);text-align:right;opacity:.7;line-height:.8}.button{display:inline-flex;align-items:center;justify-content:center;min-height:45px;padding:10px 16px;border-radius:12px;background:linear-gradient(120deg,#f6d69e,#bc8d52);color:#251c15;border:1px solid #eed29d;font-weight:800}.ghost{background:#223c50;color:var(--cream);border-color:#536778}.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.spread{justify-content:space-between}.big{flex:1}.subtitle{font-size:13px;color:var(--sub)}.item{display:flex;align-items:center;text-align:left;gap:14px;width:100%;padding:15px 12px;border:1px solid #36536a;background:#183247;color:var(--cream);border-radius:14px;margin:9px 0}.item .symbol{font:30px Georgia;color:var(--gold);width:38px;text-align:center}.item b{display:block;margin-bottom:5px}.item small{display:block;color:var(--sub);line-height:1.4}.pill{font-size:11px;color:var(--gold);padding:4px 9px;border:1px solid #7a6544;border-radius:20px}.tabs{position:fixed;bottom:0;left:0;right:0;background:#0b2032ee;border-top:1px solid #395166;display:flex;justify-content:center;padding:9px 6px calc(9px + env(safe-area-inset-bottom));z-index:9;backdrop-filter:blur(15px)}.tabs button{width:20%;max-width:140px;border:0;background:transparent;color:#aac0ca;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;min-height:48px}.tabs button span{font-size:22px}.tabs button.active{color:var(--gold);font-weight:800}
+.hidden{display:none!important}.board{width:min(100%,590px);aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);margin:12px auto;border:6px solid #886b46;border-radius:5px;box-shadow:0 12px 35px #0009;overflow:hidden}.sq{width:100%;height:100%;border:0;border-radius:0;display:grid;place-items:center;position:relative;padding:0;aspect-ratio:1;touch-action:manipulation}.light{background:#f1dfbf}.dark{background:#ad8560}.sq.selected{box-shadow:inset 0 0 0 5px #f9d15b}.sq.target::after{content:"";width:26%;height:26%;border-radius:50%;background:#18612a88;position:absolute;inset:auto}.sq.capture::after{width:84%;height:84%;border:5px solid #27713588;background:transparent}.piece{font-size:clamp(25px,8vw,55px);line-height:1;color:#14171b;filter:drop-shadow(1px 2px 1px #0004)}.piece.white{color:#fff9e8;-webkit-text-stroke:1px #2b2925}.coord{position:absolute;bottom:2px;right:3px;font-size:10px;color:#3339}.notice{background:#223c4b;border:1px solid #435c6f;border-radius:13px;padding:12px;line-height:1.5;margin:12px 0}.ok{border-color:#67956a;color:#d5f2c8}.warn{border-color:#c39263;color:#ffe1b1}.boardtools{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.stat{display:flex;gap:14px;margin:10px 0}.stat>div{flex:1;padding:14px;background:#19364a;border-radius:12px;text-align:center}.stat b{font-size:22px;color:var(--gold);display:block}.field{width:100%;background:#0d2334;border:1px solid #667888;border-radius:12px;padding:13px;color:var(--cream);margin:8px 0 16px;min-height:48px}.fine{font-size:12px;color:#b9cad0}.lessonGoal{color:var(--gold);font-weight:800}.center{text-align:center}
+@media(max-width:380px){.logo b{font-size:18px}.tag{font-size:10px}.piece{font-size:30px}.shell{padding-left:10px;padding-right:10px}}
+</style></head>
+<body><div class="shell"><div class="top"><div class="logo"><i>♞</i><div><div class="eyebrow">OYNA VE ÖĞREN</div><b>Satranç Akademisi</b></div></div><div class="tag">♛ Ücretsiz</div></div>
+<main id="main"><section id="home"><div class="card hero"><div class="eyebrow">HER HAMLEDE DAHA İYİ OL</div><h1>Satranç öğrenmek<br>burada başlıyor.</h1><p class="muted">Hoş geldin, <strong id="greeting">Misafir</strong>! Dersleri tahtada uygula, bulmacaları çöz ve bilgisayara karşı oyna.</p><div class="chess">♜ ♝ ♛</div><button class="button" data-tab="learn">♟ Eğitime başla</button></div><div class="card"><div class="eyebrow">ÖĞRENME YOLUN</div><div class="stat"><div><b>16</b><small>Ders</small></div><div><b>3</b><small>Bulmaca</small></div><div><b>3</b><small>Bot</small></div></div><p class="subtitle">İlerleme bu cihazda saklanır. Giriş ve rumuz zorunlu değildir.</p></div><div class="card"><h2>Bugün ne yapalım?</h2><button class="item" data-tab="learn"><span class="symbol">♙</span><span><b>Tahtada öğren</b><small>Taşları tanı ve hamleleri kendin yap.</small></span></button><button class="item" data-tab="puzzle"><span class="symbol">♘</span><span><b>Taktik bulmacaları</b><small>Matı ve kazandıran hamleyi bul.</small></span></button><button class="item" data-tab="bot"><span class="symbol">♚</span><span><b>Botla oyna</b><small>Kolay, orta veya zor seviyeyi seç.</small></span></button></div></section>
+<section id="learn" class="hidden"><div class="eyebrow">HAMLE HOCASI</div><h2>Öğrenme Yolu</h2><div id="lessons"></div></section>
+<section id="puzzle" class="hidden"><div class="eyebrow">TAKTİK ANTRENMANI</div><h2>Bulmacalar</h2><div id="puzzles"></div></section>
+<section id="bot" class="hidden"><div class="eyebrow">BİLGİSAYARA KARŞI</div><h2>Botla Oyna</h2><div id="bots"></div></section>
+<section id="profile" class="hidden"><h2>Profil ve Ayarlar</h2><div class="card"><label for="nick">Rumuzun (isteğe bağlı)</label><input id="nick" class="field" maxlength="20" placeholder="Örn. SatrançSever"><button class="button" id="saveNick">Kaydet</button><p class="fine">Boş bırakırsan Misafir olarak devam edersin.</p><div class="stat"><div><b id="completed">0</b><small>Tamamlanan ders</small></div><div><b id="solved">0</b><small>Bulmaca</small></div></div></div><div class="card"><h2>Gizlilik</h2><p class="subtitle">Rumuz ve ilerleme yalnızca bu tarayıcıda saklanır. Hesap açma zorunluluğu yoktur.</p><button class="button ghost" id="erase">Yerel verileri sil</button></div></section>
+<section id="session" class="hidden"><div class="row spread"><button class="button ghost" id="back">‹ Geri</button><span class="pill" id="sessionMode">Eğitim</span></div><h2 id="sessionTitle"></h2><p id="sessionDesc" class="subtitle"></p><div id="sessionGoal" class="lessonGoal"></div><div class="board" id="board" aria-label="Satranç tahtası"></div><div id="feedback" class="notice">Beyaz taşlarla ilk hamleni yap.</div><div class="boardtools"><button class="button ghost" id="restart">↺ Yeniden</button><button class="button ghost" id="hint">💡 İpucu</button></div></section></main></div>
+<nav class="tabs" aria-label="Alt menü"><button data-tab="home" class="active"><span>⌂</span>Ana Sayfa</button><button data-tab="learn"><span>♙</span>Dersler</button><button data-tab="puzzle"><span>♘</span>Bulmaca</button><button data-tab="bot"><span>♚</span>Oyna</button><button data-tab="profile"><span>♔</span>Profil</button></nav>
+<script type="module">
+import {Chess} from "https://cdn.jsdelivr.net/npm/chess.js@1.0.0/+esm";
+const start="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const course=[
+["1. Başlangıç","merkez","Merkeze ilk adım","Merkezi kontrol etmeye başla.","e2 piyonunu e4'e götür.",start,["e2e4"]],
+["1. Başlangıç","piyon","Piyon nasıl hareket eder?","Piyon ileri gider, çapraz taş alır.","e2 piyonunu e4'e götür.","7k/8/8/8/8/8/4P3/7K w - - 0 1",["e2e4"]],
+["1. Başlangıç","kale","Kalenin gücü","Kale düz ve yatay hareket eder.","a1'deki kaleyi a4'e götür.","7k/8/8/8/8/8/8/R6K w - - 0 1",["a1a4"]],
+["1. Başlangıç","fil","Fil çapraz gider","Fil çapraz karelere gider.","Fili c1'den g5'e götür.","7k/8/8/8/8/8/8/2B4K w - - 0 1",["c1g5"]],
+["1. Başlangıç","at","Atın L hareketi","At diğer taşların üzerinden atlayabilir.","Atı g1'den f3'e götür.","7k/8/8/8/8/8/8/6NK w - - 0 1",["g1f3"]],
+["1. Başlangıç","vezir","Vezir nasıl oynar?","Vezir düz ve çapraz hareket edebilir.","Veziri d1'den h5'e götür.","7k/8/8/8/8/8/8/3Q3K w - - 0 1",["d1h5"]],
+["1. Başlangıç","sah","Şahı korumak","Şah saldırı altındaki kareye gidemez.","Şahı e1'den f2'ye götür.","4k3/8/8/8/8/8/8/4K3 w - - 0 1",["e1f2"]],
+["1. Başlangıç","caprazalma","Piyonla taş alma","Piyon rakip taşı çapraz alır.","e4 piyonu ile d5 piyonunu al.","k7/8/8/3p4/4P3/8/8/7K w - - 0 1",["e4d5"]],
+["2. Özel Kurallar","sahcek","Şah çek","Şahı tehdit etmek rakibi yanıt vermeye zorlar.","Kaleyi e2'den e7'ye götür.","4k3/8/8/8/8/8/4R3/4K3 w - - 0 1",["e2e7"]],
+["2. Özel Kurallar","mat","Tek hamlede mat","Şahın kaçış ve savunma hamlesi kalmayınca mat olur.","Veziri f7'den g7'ye götür.","7k/5Q2/5K2/8/8/8/8/8 w - - 0 1",["f7g7"]],
+["2. Özel Kurallar","rok","Kısa rok","Şah ve kaleyi güvenli bir düzene sok.","Şahı e1'den g1'e taşı.","4k3/8/8/8/8/8/8/4K2R w K - 0 1",["e1g1"]],
+["2. Özel Kurallar","enpassant","Geçerken alma","Rakip piyon iki kare geldiyse hemen geçerken alabilirsin.","e5 piyonunu d6'ya götür.","4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",["e5d6"]],
+["2. Özel Kurallar","terfi","Piyon terfisi","Son sıraya ulaşan piyon yeni taşa dönüşür.","a7 piyonunu a8'de vezir yap.","7k/P7/8/8/8/8/8/7K w - - 0 1",["a7a8q"]],
+["3. İlk Stratejiler","d4","Merkezi sahiplen","Merkezde alan kazan.","d2 piyonunu d4'e götür.",start,["d2d4"]],
+["3. İlk Stratejiler","gelistirme","Atını geliştir","Açılışta taşlarını etkin karelere çıkar.","g1 atını f3'e götür.",start,["g1f3"]],
+["3. İlk Stratejiler","italyan","İtalyan Açılışı","Piyon, at ve fili geliştirerek açılışı öğren.","Önce e4, sonra Af3 ve Fc4 oyna.",start,["e2e4","e7e5","g1f3","b8c6","f1c4"]]
+];
+const puzzles=[["puzzle-mat","Tek hamlede mat","7k/5Q2/5K2/8/8/8/8/8 w - - 0 1","f7g7","Rakip şahın kaçacağı kare bırakma."],["puzzle-alma","Piyonla kazan","k7/8/8/3p4/4P3/8/8/7K w - - 0 1","e4d5","Çapraz taş alma hamlesini bul."],["puzzle-sah","Şah tehdidi","4k3/8/8/8/8/8/4R3/4K3 w - - 0 1","e2e7","Kalenle şah çek."]];
+const glyph={p:"♟",r:"♜",n:"♞",b:"♝",q:"♛",k:"♚"};
+const $=id=>document.getElementById(id), prefKey="satranc-akademisi-v1";
+let profile={nick:"",done:[],puzzlesDone:[]};
+try{const old=JSON.parse(localStorage.getItem(prefKey)||"{}");if(old&&typeof old==="object")profile={...profile,...old}}catch{}
+if(!Array.isArray(profile.done))profile.done=[];if(!Array.isArray(profile.puzzlesDone))profile.puzzlesDone=[];
+const save=()=>{try{localStorage.setItem(prefKey,JSON.stringify(profile))}catch{}};
+let page="home",g=new Chess(),selection="",mode="",item=null,step=0,busy=false,level="Kolay";
+const displayNick=()=>profile.nick&&profile.nick.trim()?profile.nick.trim():"Misafir";
+function refresh(){ $("greeting").textContent=displayNick();$("nick").value=profile.nick||"";$("completed").textContent=profile.done.length;$("solved").textContent=profile.puzzlesDone.length;}
+function tab(v){page=v;document.querySelectorAll("main section").forEach(x=>x.classList.toggle("hidden",x.id!==v));document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("active",x.dataset.tab===v));refresh();window.scrollTo(0,0)}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(b)tab(b.dataset.tab)});
+const group={};
+course.forEach((r,i)=>{(group[r[0]] ||= []).push([r,i])});
+$("lessons").innerHTML=Object.entries(group).map(([heading,entries])=>'<div class="card"><div class="eyebrow">'+heading+'</div>'+entries.map(([r,i])=>'<button class="item" data-lesson="'+i+'"><span class="symbol">♙</span><span class="big"><b>'+r[2]+'</b><small>'+r[3]+'</small></span><span class="pill" data-done="'+r[1]+'">Başla</span></button>').join("")+'</div>').join("");
+$("puzzles").innerHTML=puzzles.map((r,i)=>'<button class="item" data-puzzle="'+i+'"><span class="symbol">♘</span><span class="big"><b>'+r[1]+'</b><small>'+r[4]+'</small></span><span class="pill">Çöz</span></button>').join("");
+$("bots").innerHTML=["Kolay","Orta","Zor"].map((l,i)=>'<button class="item" data-bot="'+l+'"><span class="symbol">♚</span><span class="big"><b>'+l+' Bot</b><small>'+["Yeni başlayanlar için rastgele yasal hamleler.","Taş kazanmaya odaklanan hamleler.","Bir karşı hamleyi de değerlendiren bot."][i]+'</small></span><span class="pill">Oyna</span></button>').join("");
+document.addEventListener("click",e=>{const l=e.target.closest("[data-lesson]");if(l)openLesson(course[Number(l.dataset.lesson)]);const p=e.target.closest("[data-puzzle]");if(p)openPuzzle(puzzles[Number(p.dataset.puzzle)]);const b=e.target.closest("[data-bot]");if(b)openBot(b.dataset.bot)});
+function showSession(title,description,goal,kind){mode=kind;selection="";busy=false;step=0;$("sessionTitle").textContent=title;$("sessionDesc").textContent=description;$("sessionGoal").textContent=goal;$("sessionMode").textContent=kind==="bot"?"Bilgisayara karşı":kind==="puzzle"?"Bulmaca":"Eğitim";$("hint").style.display=kind==="bot"?"none":"";$("feedback").textContent="Bir taş seç, sonra gideceği kareye dokun.";tab("session");draw();}
+function openLesson(r){item=r;g=new Chess(r[5]);showSession(r[2],r[3],r[4],"lesson");}
+function openPuzzle(r){item=r;g=new Chess(r[2]);showSession(r[1],r[4],"Hedef hamleyi tahtada bul.","puzzle");}
+function openBot(l){level=l;item=null;g=new Chess();showSession(l+" Bot","Beyaz taşlar senin. Rakibin siyahlarla oynayacak.","İlk hamleni yap.","bot");}
+function drawn(){if(g.isCheckmate())return "Şah mat! "+(g.turn()==="w"?"Siyah":"Beyaz")+" kazandı.";if(g.isDraw())return "Oyun berabere.";if(g.isCheck())return "Şah çekildi!";return "";}
+function draw(){
+const board=$("board");board.textContent="";
+const possibles=selection?g.moves({square:selection,verbose:true}).map(m=>m.to):[];
+for(let rank=8;rank>=1;rank--)for(let file=0;file<8;file++){
+ const sq="abcdefgh"[file]+rank,p=g.get(sq);const btn=document.createElement("button");
+ btn.type="button";btn.className="sq "+(((8-rank+file)%2)?"dark":"light")+(selection===sq?" selected":"")+(possibles.includes(sq)?" target"+(p?" capture":""):"");btn.setAttribute("aria-label",sq+(p?" "+p.type:""));btn.addEventListener("click",()=>select(sq));
+ if(p){let span=document.createElement("span");span.className="piece "+(p.color==="w"?"white":"");span.textContent=glyph[p.type];btn.append(span)}
+ if(file===0||rank===1){let co=document.createElement("span");co.className="coord";co.textContent=rank===1?"abcdefgh"[file]:String(rank);btn.append(co)}board.append(btn)
+}
+}
+function select(sq){
+if(busy||g.isGameOver())return;
+const p=g.get(sq);
+if(g.turn()!=="w"&&mode==="bot")return;
+if(p&&p.color===g.turn()){selection=selection===sq?"":sq;draw();return}
+if(!selection){return}
+const available=g.moves({square:selection,verbose:true}).filter(m=>m.to===sq);
+if(!available.length){selection="";draw();return}
+let promotion="q";if(available.some(m=>m.flags.includes("p"))){let choice=prompt("Piyon terfisi: q=Vezir, r=Kale, b=Fil, n=At","q");promotion=["q","r","b","n"].includes((choice||"q").toLowerCase())?choice.toLowerCase():"q";}
+const uci=selection+sq+(available.some(m=>m.flags.includes("p"))?promotion:"");
+selection="";
+if(mode==="lesson"){
+ if(uci!==item[6][step]){$("feedback").textContent="Bu hamle yasal ama dersin hedefi farklı: "+item[4];draw();return}
+}else if(mode==="puzzle"&&uci!==item[3]){$("feedback").textContent="Bu hamle yasal ama bulmacanın cevabı değil. Yeniden dene.";draw();return}
+try{g.move({from:uci.slice(0,2),to:uci.slice(2,4),promotion:uci[4]||"q"})}catch{return}
+draw();
+if(mode==="bot"){
+ let end=drawn();if(end){$("feedback").textContent=end;return}
+ $("feedback").textContent="Bot düşünüyor…";busy=true;setTimeout(()=>{botMove();busy=false;draw();$("feedback").textContent=drawn()||"Bot oynadı. Sıra sende.";},330);
+}else if(mode==="puzzle"){profile.puzzlesDone=[...new Set([...profile.puzzlesDone,item[0]])];save();$("feedback").textContent="Başardın! Doğru hamleyi buldun.";refresh();}
+else {
+ step++;
+ while(step<item[6].length&&g.turn()==="b"){
+ const code=item[6][step];try{g.move({from:code.slice(0,2),to:code.slice(2,4),promotion:code[4]||"q"});step++;}catch{break}
+ }
+ draw();
+ if(step>=item[6].length){profile.done=[...new Set([...profile.done,item[1]])];save();$("feedback").textContent="Tebrikler! Ders tamamlandı.";refresh()}else $("feedback").textContent="Harika! Şimdi sıradaki doğru hamleyi bul.";
+}
+}
+function material(board){const v={p:100,n:320,b:330,r:500,q:900,k:0};return board.flat().reduce((sum,p)=>sum+(p?(p.color==="b"?1:-1)*v[p.type]:0),0)}
+function botMove(){
+const ms=g.moves({verbose:true});if(!ms.length)return;
+let best=ms[Math.floor(Math.random()*ms.length)];
+if(level!=="Kolay"){
+let bestScore=-Infinity;
+for(const m of ms){
+g.move(m);let score=material(g.board());
+if(g.isCheckmate())score+=100000;
+if(level==="Zor"&&!g.isGameOver()){
+let replyBest=Infinity;for(const r of g.moves({verbose:true})){g.move(r);const s=material(g.board());replyBest=Math.min(replyBest,s);g.undo();}score=replyBest;
+}g.undo();score+=Math.random()*15;
+if(score>bestScore){bestScore=score;best=m;}
+}}
+g.move(best);
+}
+$("back").addEventListener("click",()=>tab(mode==="lesson"?"learn":mode==="puzzle"?"puzzle":"bot"));
+$("restart").addEventListener("click",()=>{if(mode==="lesson")openLesson(item);else if(mode==="puzzle")openPuzzle(item);else openBot(level)});
+$("hint").addEventListener("click",()=>{const m=mode==="puzzle"?item[3]:item[6][step];if(m)$("feedback").textContent="İpucu: "+m.slice(0,2)+" karesinden "+m.slice(2,4)+" karesine git.";});
+$("saveNick").addEventListener("click",()=>{profile.nick=$("nick").value.trim().slice(0,20);save();refresh();alert("Profil kaydedildi.");});
+$("erase").addEventListener("click",()=>{if(!confirm("Rumuz ve öğrenme ilerlemesini silmek istiyor musun?"))return;profile={nick:"",done:[],puzzlesDone:[]};save();refresh();tab("home");});
+refresh();tab("home");
+</script></body></html>
