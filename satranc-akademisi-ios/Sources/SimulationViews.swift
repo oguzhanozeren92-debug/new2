@@ -32,8 +32,8 @@ struct SimulationHubView: View {
                     PremiumSectionHeading(title: "Hikâyeni Seç",
                                           eyebrow: "BAŞLANGIÇTAN İLK MATA",
                                           count: "6 senaryo")
-                    ForEach(Array(ChessScenario.all.filter { !$0.isFreePlay }.enumerated()),
-                            id: \.element.id) { index, scenario in
+                    ForEach(ChessScenario.all.filter { !$0.isFreePlay }.indices, id: \.self) { index in
+                        let scenario = ChessScenario.all.filter { !$0.isFreePlay }[index]
                         NavigationLink {
                             SimulationSessionView(scenario: scenario)
                         } label: {
