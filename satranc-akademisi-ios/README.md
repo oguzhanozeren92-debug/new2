@@ -67,3 +67,17 @@ Ana ekrandaki **“Sıfırdan Başla — Hiç bilmiyorum”** bölümü satranç
 Bundan sonra **“0. İlk Hamle Alıştırmaları”** içinde ikinci piyon, kale, fil, at, vezir ve şah için birer çok kolay hamle vardır. Taktik, özel kurallar ve hamle notasyonu rehberi sonraki aşamada görünür; ayrı kayıt ve rumuz gerekmez. Bütün alıştırmalar tekrar oynanabilir, süre sınırı ve hata cezası yoktur.
 
 **Dikkat:** SwiftUI başlangıç öğreticisi yeni eklendi; gerçek Xcode derlemesi, cihazda erişilebilirlik ve bütün animasyon akışı henüz doğrulanmadı.
+
+## Senaryolu Satranç Simülatörü ve Hamle Hocası (2 Kasım 2026)
+
+Ana sayfa ve Dersler ekranına **Senaryolu Simülasyon** girişi eklendi. iOS kaynakları:
+- `Sources/SimulationContent.swift` — altı rehberli senaryo: ilk mini maç, piyonla taş alma, şahı kurtarma, at çatalı, mutlak açmaz ve mat. Bunlara ek olarak bir **koçlu serbest maç** bulunur.
+- `Sources/SimulationViews.swift` — 8x8 oynanabilir satranç tahtası, oyuncunun gerçek hamlesi, rakibin senaryo hamlesi, istenirse ipucu, yanlış yola sapınca serbest devam, geri alma, yeniden başlatma ve sonuç ekranı.
+- `Sources/SimulationCoach.swift` — ChessKit üzerinden **her yasal hamleyi** inceler: mevcut hedef, taş alma, şah, mat, pat, oynanan taşın bir sonraki hamlede alınabilme riski ve rakibin tek hamlede mat tehdidi. Rakibin hamleleri de ayrı ayrı raporlanır.
+- `Sources/SimulationReplay.swift` — senaryo raporundaki **tahtalı geri/ileri oynatma**, her hamleyle eşzamanlı Türkçe açıklama ve uyarı.
+- Her hamle için sahici **FEN öncesi/sonrası** ve rehber ilerleme kaydı tutulur; geri alma tam FEN durumunu geri yükler.
+- Senaryo doğru tamamlanınca yerel `academy.scenarios.completed` anahtarına kaydedilir. **Bütün hamle listesi oturumda tutulur; henüz bulut senkronu veya kalıcı geçmiş özelliği yoktur.**
+
+Senaryo dizilerinin tamamı 0x88 satranç kurallarıyla doğrulandı: örneklerde **yasal olmayan hamle yok**, mat senaryosu gerçekten mat ile biter. Ancak iPhone'da Xcode/Codemagic derlemesi, gerçek cihaz testi ve oynanış/erişilebilirlik doğrulaması **henüz yapılmadı**.
+
+**Önemli şeffaflık notu:** Hamle Hocası bu ilk sürümde **kural ve bir hamle derinliğindeki taktik kontrolü** kullanır. Bu sistem Stockfish, güçlü motorla derin varyasyon taraması, bulut yapay zekâsı veya kesin “en iyi hamle” analizi değildir. İleri düzey alternatif hamle sıralaması ve puanlama için lisans şartları gözetilerek ayrı bir motor entegrasyonu yapılmalıdır.
