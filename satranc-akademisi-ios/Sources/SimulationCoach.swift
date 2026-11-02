@@ -19,7 +19,10 @@ struct SimulationMoveReview: Identifiable {
     let moveName: String
     let notation: String
     let verdict: CoachVerdict
+    let fenBefore: String
     let fenAfter: String
+    let guidedIndexBefore: Int
+    let deviatedBefore: Bool
 }
 
 enum ChessMoveCoach {
