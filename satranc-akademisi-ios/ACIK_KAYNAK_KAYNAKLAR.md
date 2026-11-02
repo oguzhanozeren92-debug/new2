@@ -10,6 +10,7 @@ Bu dosya seçilen bileşenlerin kaynaklarını ve lisans denetimini belgeler. Ko
 | ChessKit | https://github.com/aperechnev/ChessKit | MIT | iOS yasal hamleler, pozisyon, FEN ve oyun akışı (Swift Package) |
 | chess.js | https://github.com/jhlywa/chess.js | BSD-2-Clause | Web eğitimleri, pozisyonlar, yasal hamle kontrolü, mat/beraberlik ve bot için oyun durumu (ES module) |
 | lichess-org/chess-openings | https://github.com/lichess-org/chess-openings | CC0-1.0 (public domain dedication) | Açılışların ECO kodları, isimleri ve temel hamle sıraları |
+| Lichess Open Database - puzzles | https://database.lichess.org/#puzzles | CC0-1.0 | Taktik temaları ve dereceleri için kaynak; otomatik seçme scripti eklendi, veri tabanı **henüz ürüne alınmadı** |
 
 ## Lichess üzerinden eklenen açılışlar
 
@@ -47,7 +48,7 @@ MIT ve BSD lisanslarının gerektirdiği telif, lisans ve sorumluluk reddi bildi
 
 ## Projedeki son durum
 
-- iPhone SwiftUI: 31 ders (ilk 16 + 11 açılış + 4 oyun sonu), 6 bulmaca, 3 basit bot seviyesi.
-- Web yedek prototipi: aynı eğitim ve bulmaca içeriği eklendi.
+- iPhone SwiftUI: 36 ders (ilk 16 + 11 açılış + 4 oyun sonu + 5 taktik), 11 bulmaca, 10 açıklamalı taktik kavramı ve 3 basit bot seviyesi.
+- Web yedek prototipi: 36 ders ve 11 bulmaca eşleştirildi. Web hâlâ canlı kullanım için doğrulanmadı.
 - iOS gerçek derleme, oynanış otomasyon testleri, TestFlight ve web canlı erişim testi **henüz doğrulanmadı**.
 - Vercel'in ücretsiz günlük dağıtım kotası dolduğu için web sürümünü canlıya yeniden dağıtma işlemi ayrıca yapılmalı.
