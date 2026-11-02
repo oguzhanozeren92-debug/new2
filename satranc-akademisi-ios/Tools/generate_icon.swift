@@ -4,7 +4,7 @@ import Foundation
 // Premium, original Satranç Akademisi app icon.
 // Generated at build time: 1024px, opaque, full-bleed (iOS applies its own mask).
 // No external downloaded artwork or trademarked photography.
-let side = 1024.0
+let side: CGFloat = 1024
 let canvas = NSRect(x: 0, y: 0, width: side, height: side)
 let icon = NSImage(size: canvas.size)
 
@@ -19,7 +19,6 @@ let champagne = color(0.99, 0.85, 0.61)
 let gold = color(0.89, 0.66, 0.35)
 
 icon.lockFocus()
-defer { icon.unlockFocus() }
 
 NSGradient(starting: royalBlue, ending: midnight)?
     .draw(in: NSBezierPath(rect: canvas), angle: 125)
@@ -100,6 +99,8 @@ floor.lineWidth = 9
 floor.lineCapStyle = .round
 gold.setStroke()
 floor.stroke()
+
+icon.unlockFocus()
 
 guard let tiff = icon.tiffRepresentation,
       let bitmap = NSBitmapImageRep(data: tiff),
