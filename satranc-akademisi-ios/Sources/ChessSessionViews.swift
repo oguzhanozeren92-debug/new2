@@ -53,16 +53,16 @@ struct ChessLessonSession: View {
                 ProgressView(value: Double(stepIndex),
                              total: Double(max(lesson.steps.count, 1))).tint(Theme.gold)
 
-                GeometryReader { proxy in
+                PremiumChessBoardFrame {
+                    GeometryReader { proxy in
                     Chessboard(chessboardModel: boardModel)
                         .onMove { move, isLegal, from, to, lan, promotionPiece in
                             onMove(move: move, lan: lan, isLegal: isLegal)
                         }
                         .frame(width: proxy.size.width, height: proxy.size.width)
+                    }
+                    .aspectRatio(1, contentMode: .fit)
                 }
-                .aspectRatio(1, contentMode: .fit)
-                .padding(5)
-                .background(Theme.gold.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
 
                 if let tactic = TacticConcept.forLesson(lesson.id) {
                     DisclosureGroup("Bu taktiği nasıl fark ederim?") {
@@ -107,7 +107,7 @@ struct ChessLessonSession: View {
             .frame(maxWidth: 680)
             .frame(maxWidth: .infinity)
         }
-        .background(Theme.background.ignoresSafeArea())
+        .background(PremiumBackdrop())
         .navigationTitle(lesson.title)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -225,7 +225,8 @@ struct ChessBotSession: View {
                 }
                 .padding(12)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
-                GeometryReader { proxy in
+                PremiumChessBoardFrame {
+                    GeometryReader { proxy in
                     Chessboard(chessboardModel: boardModel)
                         .onMove { move, isLegal, from, to, lan, promotionPiece in
                             guard !thinking, !gameOver, isLegal else { return }
@@ -237,10 +238,9 @@ struct ChessBotSession: View {
                             if !gameOver { botTurn() }
                         }
                         .frame(width: proxy.size.width, height: proxy.size.width)
+                    }
+                    .aspectRatio(1, contentMode: .fit)
                 }
-                .aspectRatio(1, contentMode: .fit)
-                .padding(5)
-                .background(Theme.gold.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
                 Text(feedback)
                     .font(.subheadline)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -256,7 +256,7 @@ struct ChessBotSession: View {
             }
             .padding(12).frame(maxWidth: 680).frame(maxWidth: .infinity)
         }
-        .background(Theme.background.ignoresSafeArea())
+        .background(PremiumBackdrop())
         .navigationTitle(difficulty.rawValue + " Bot")
         .navigationBarTitleDisplayMode(.inline)
     }
