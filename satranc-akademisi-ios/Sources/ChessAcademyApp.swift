@@ -98,6 +98,39 @@ struct AcademyHomeView: View {
                     }
                     .padding(22)
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: 20))
+                    NavigationLink {
+                        SimulationHubView()
+                    } label: {
+                        HStack(spacing: 13) {
+                            Image(systemName: "theatermasks.fill")
+                                .font(.system(size: 32))
+                                .foregroundStyle(Theme.gold)
+                                .frame(width: 46, height: 50)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("SENARYOLU SİMÜLASYON")
+                                    .font(.caption.weight(.heavy))
+                                    .foregroundStyle(Theme.gold)
+                                Text("Hamleni yap, Hamle Hocası analiz etsin")
+                                    .font(.headline)
+                                    .foregroundStyle(Theme.cream)
+                                Text("7 hikâye ve koçlu serbest maç · Hamle sonu raporu")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").foregroundStyle(Theme.gold)
+                        }
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            LinearGradient(colors: [Theme.surface, Theme.gold.opacity(0.18)],
+                                           startPoint: .leading, endPoint: .trailing),
+                            in: RoundedRectangle(cornerRadius: 17)
+                        )
+                        .overlay(RoundedRectangle(cornerRadius: 17).stroke(Theme.gold.opacity(0.5), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+
                     Text("Öğrenme Yolun")
                         .font(.system(.title2, design: .serif, weight: .bold))
                     ForEach(AcademyCourse.all) { course in
@@ -138,6 +171,21 @@ struct CoursesView: View {
                                 .font(.headline).foregroundStyle(Theme.gold)
                             Text("Taşları tanı, tahtaya dokun, beyazın neden başladığını öğren.")
                                 .font(.caption).foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 7)
+                    }
+                }
+                Section("Senaryolarla uygula") {
+                    NavigationLink {
+                        SimulationHubView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Label("Simülasyon ve Hamle Hocası", systemImage: "theatermasks.fill")
+                                .font(.headline)
+                                .foregroundStyle(Theme.gold)
+                            Text("Rakip hamlelerini gör, kendi kararını ver, her hamlenin nedenini raporda öğren.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 7)
                     }
