@@ -402,77 +402,148 @@ struct PremiumCourseDetailView: View {
 }
 
 struct CoursesView: View {
-    @AppStorage("academy.completed") private var completed = ""
+    private func piece(for id: String) -> PremiumChessPiece {
+        switch id {
+        case "ilk-adim", "baslangic": return .pawn
+        case "kurallar": return .king
+        case "plan": return .bishop
+        case "taktikler": return .knight
+        case "acilislar": return .queen
+        case "oyunsonu": return .rook
+        default: return .pawn
+        }
+    }
+
     var body: some View {
         NavigationStack {
-            List {
-                Section("Satrancı hiç bilmiyorum") {
-                    NavigationLink {
-                        BeginnerJourneyView()
-                    } label: {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Label("0. Sıfırdan Başla", systemImage: "graduationcap.fill")
-                                .font(.headline).foregroundStyle(Theme.gold)
-                            Text("Taşları tanı, tahtaya dokun, beyazın neden başladığını öğren.")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 7)
-                    }
-                }
-                Section("Senaryolarla uygula") {
-                    NavigationLink {
-                        SimulationHubView()
-                    } label: {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Label("Simülasyon ve Hamle Hocası", systemImage: "theatermasks.fill")
-                                .font(.headline)
-                                .foregroundStyle(Theme.gold)
-                            Text("Rakip hamlelerini gör, kendi kararını ver, her hamlenin nedenini raporda öğren.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 7)
-                    }
-                }
-                ForEach(AcademyCourse.all) { course in
-                    Section {
-                        ForEach(course.lessons) { lesson in
-                            NavigationLink {
-                                ChessLessonSession(lesson: lesson)
-                            } label: {
-                                HStack {
-                                    Image(systemName: completed.split(separator: ",").contains(Substring(lesson.id)) ? "checkmark.seal.fill" : "play.circle")
-                                        .foregroundStyle(Theme.gold)
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text(lesson.title).font(.headline)
-                                        Text(lesson.description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            ZStack {
+                PremiumBackdrop()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        PremiumSectionHeading(title: "Satranç Dersleri",
+                                              eyebrow: "KENDİ HIZINDA ÖĞREN",
+                                              count: "43 ders")
+                        NavigationLink {
+                            BeginnerJourneyView()
+                        } label: {
+                            PremiumPanel(accent: true) {
+                                HStack(spacing: 14) {
+                                    ChessPieceBadge(piece: .pawn, size: 58, highlighted: true)
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("Sıfırdan başla")
+                                            .font(.system(.title3, design: .serif, weight: .bold))
+                                            .foregroundStyle(Theme.cream)
+                                        Text("Tahtayı ve taşları tanı, ilk hamleni yap.")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.pale)
                                     }
+                                    Spacer(minLength: 0)
+                                    Image(systemName: "chevron.right")
+                                        .foregroundStyle(Theme.gold)
                                 }
-                                .frame(minHeight: 44)
                             }
                         }
-                    } header: {
-                        Label(course.title, systemImage: course.symbol)
-                    } footer: {
-                        Text(course.summary)
+                        .buttonStyle(.plain)
+
+                        NavigationLink {
+                            SimulationHubView()
+                        } label: {
+                            PremiumPanel {
+                                HStack(spacing: 14) {
+                                    ChessPieceBadge(piece: .knight, size: 58)
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("Senaryolu Simülasyon")
+                                            .font(.headline)
+                                            .foregroundStyle(Theme.cream)
+                                        Text("Hamleni yap, koçun analiz etsin.")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.pale)
+                                    }
+                                    Spacer(minLength: 0)
+                                    Image(systemName: "chevron.right")
+                                        .foregroundStyle(Theme.gold)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        PremiumSectionHeading(title: "Eğitim Bölümleri",
+                                              eyebrow: "TEMELDEN USTALIĞA",
+                                              count: String(AcademyCourse.all.count))
+                            .padding(.top, 9)
+
+                        ForEach(AcademyCourse.all) { course in
+                            NavigationLink {
+                                PremiumCourseDetailView(course: course)
+                            } label: {
+                                PremiumPanel {
+                                    HStack(spacing: 14) {
+                                        ChessPieceBadge(piece: piece(for: course.id), size: 56)
+                                        VStack(alignment: .leading, spacing: 5) {
+                                            Text(course.title)
+                                                .font(.system(.headline, design: .serif))
+                                                .foregroundStyle(Theme.cream)
+                                            Text(course.summary)
+                                                .font(.caption)
+                                                .foregroundStyle(Theme.pale)
+                                                .multilineTextAlignment(.leading)
+                                                .lineLimit(2)
+                                            Text(String(course.lessons.count) + " DERS")
+                                                .font(.system(size: 10, weight: .heavy))
+                                                .tracking(1)
+                                                .foregroundStyle(Theme.gold)
+                                        }
+                                        Spacer(minLength: 0)
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(Theme.gold)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        PremiumSectionHeading(title: "Satranç Kütüphanesi",
+                                              eyebrow: "ÖĞRENDİKÇE KEŞFET")
+                            .padding(.top, 8)
+                        NavigationLink {
+                            MoveNotationGuideView()
+                        } label: {
+                            libraryRow(piece: .rook, title: "Hamlelerin Dili",
+                                       subtitle: "e4, Af3, O-O, şah ve mat işaretleri")
+                        }
+                        .buttonStyle(.plain)
+                        NavigationLink {
+                            TacticGlossaryView()
+                        } label: {
+                            libraryRow(piece: .bishop, title: "Taktik Sözlüğü",
+                                       subtitle: "Çatal, açmaz, şiş ve daha fazlası")
+                        }
+                        .buttonStyle(.plain)
                     }
-                }
-                Section("Temellerden sonra") {
-                    NavigationLink {
-                        MoveNotationGuideView()
-                    } label: {
-                        Label("Hamleleri okuma: Af3, O-O, +, #", systemImage: "text.book.closed.fill")
-                    }
-                    NavigationLink {
-                        TacticGlossaryView()
-                    } label: {
-                        Label("Taktik sözlüğü: Çatal, Açmaz, Şiş...", systemImage: "lightbulb.fill")
-                    }
+                    .padding(16)
+                    .frame(maxWidth: 720)
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Theme.background)
-            .navigationTitle("Satranç Dersleri")
+            .navigationTitle("Dersler")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func libraryRow(piece: PremiumChessPiece, title: String,
+                            subtitle: String) -> some View {
+        PremiumPanel {
+            HStack(spacing: 14) {
+                ChessPieceBadge(piece: piece, size: 51)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title).font(.headline).foregroundStyle(Theme.cream)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(Theme.pale)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.right").foregroundStyle(Theme.gold)
+            }
         }
     }
 }
@@ -480,20 +551,66 @@ struct CoursesView: View {
 struct PuzzlesView: View {
     var body: some View {
         NavigationStack {
-            List(AcademyCourse.puzzles) { lesson in
-                NavigationLink(destination: ChessLessonSession(lesson: lesson)) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "puzzlepiece.fill").foregroundStyle(Theme.gold)
-                        VStack(alignment: .leading) {
-                            Text(lesson.title).font(.headline)
-                            Text(lesson.goal).font(.caption).foregroundStyle(.secondary)
+            ZStack {
+                PremiumBackdrop()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        PremiumPanel(accent: true) {
+                            HStack(spacing: 15) {
+                                ChessPieceBadge(piece: .knight, size: 72, highlighted: true)
+                                VStack(alignment: .leading, spacing: 7) {
+                                    Text("TAKTİK ARENASI")
+                                        .font(.system(size: 10, weight: .heavy))
+                                        .tracking(1.4)
+                                        .foregroundStyle(Theme.gold)
+                                    Text("Hamleyi sen bul.")
+                                        .font(.system(.title2, design: .serif, weight: .bold))
+                                        .foregroundStyle(Theme.cream)
+                                    Text("Yanlış yapmak serbest. Her bulmacanın mantığını tahtada keşfet.")
+                                        .font(.caption).foregroundStyle(Theme.pale)
+                                }
+                            }
                         }
-                    }.frame(minHeight: 44)
+
+                        PremiumSectionHeading(title: "Bulmacalar",
+                                              eyebrow: "DÜŞÜN · BUL · ÖĞREN",
+                                              count: String(AcademyCourse.puzzles.count))
+                        ForEach(Array(AcademyCourse.puzzles.enumerated()), id: \.element.id) { index, lesson in
+                            NavigationLink {
+                                ChessLessonSession(lesson: lesson)
+                            } label: {
+                                PremiumPanel(padding: 15) {
+                                    HStack(spacing: 13) {
+                                        ChessPieceBadge(
+                                            piece: index.isMultiple(of: 2) ? .knight : .bishop,
+                                            size: 53
+                                        )
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text(lesson.title)
+                                                .font(.headline)
+                                                .foregroundStyle(Theme.cream)
+                                            Text(lesson.goal)
+                                                .font(.caption)
+                                                .foregroundStyle(Theme.pale)
+                                                .multilineTextAlignment(.leading)
+                                                .lineLimit(2)
+                                        }
+                                        Spacer(minLength: 0)
+                                        Image(systemName: "arrow.up.right")
+                                            .foregroundStyle(Theme.gold)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(16)
+                    .frame(maxWidth: 720)
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Theme.background)
-            .navigationTitle("Taktik Bulmacaları")
+            .navigationTitle("Bulmacalar")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
@@ -501,28 +618,69 @@ struct PuzzlesView: View {
 struct BotMenuView: View {
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    ForEach(BotDifficulty.allCases) { level in
-                        NavigationLink(destination: ChessBotSession(difficulty: level)) {
-                            HStack {
-                                Image(systemName: "checkerboard.rectangle").foregroundStyle(Theme.gold)
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text(level.rawValue).font(.headline)
-                                    Text(level.description).font(.caption).foregroundStyle(.secondary)
+            ZStack {
+                PremiumBackdrop()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 15) {
+                        PremiumPanel(accent: true) {
+                            HStack(spacing: 16) {
+                                ChessPieceBadge(piece: .king, size: 77, highlighted: true)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("ŞAHA MEYDAN OKU")
+                                        .font(.system(size: 10, weight: .heavy))
+                                        .tracking(1.4)
+                                        .foregroundStyle(Theme.gold)
+                                    Text("Botla karşılaş")
+                                        .font(.system(.title2, design: .serif, weight: .bold))
+                                        .foregroundStyle(Theme.cream)
+                                    Text("Öğrendiklerini gerçek hamlelerle dene.")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.pale)
                                 }
-                            }.frame(minHeight: 50)
+                            }
                         }
+                        PremiumSectionHeading(title: "Zorluk Seç",
+                                              eyebrow: "SANA UYGUN RAKİP",
+                                              count: "3 seviye")
+                        ForEach(Array(BotDifficulty.allCases.enumerated()), id: \.element.id) { index, level in
+                            NavigationLink {
+                                ChessBotSession(difficulty: level)
+                            } label: {
+                                PremiumPanel {
+                                    HStack(spacing: 13) {
+                                        ChessPieceBadge(
+                                            piece: [.pawn, .rook, .queen][index],
+                                            size: 60,
+                                            highlighted: index == 0
+                                        )
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text(level.rawValue)
+                                                .font(.system(.title3, design: .serif, weight: .bold))
+                                                .foregroundStyle(Theme.cream)
+                                            Text(level.description)
+                                                .font(.caption)
+                                                .foregroundStyle(Theme.pale)
+                                                .multilineTextAlignment(.leading)
+                                        }
+                                        Spacer(minLength: 0)
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(Theme.gold)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Text("Bot seviyeleri eğitim amaçlıdır; resmî ELO gücü değildir.")
+                            .font(.footnote).foregroundStyle(Theme.pale)
+                            .padding(.horizontal, 3)
                     }
-                } header: {
-                    Text("Bilgisayara Karşı")
-                } footer: {
-                    Text("Seviyeler motorun arama derinliğine göre ayrılır. Resmî ELO değildir.")
+                    .padding(16)
+                    .frame(maxWidth: 720)
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Theme.background)
             .navigationTitle("Botla Oyna")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
