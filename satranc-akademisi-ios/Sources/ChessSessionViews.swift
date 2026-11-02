@@ -164,6 +164,7 @@ struct ChessBotSession: View {
     @State private var feedback = "Beyaz taşlar senin. İlk hamleni yap."
     @State private var thinking = false
     @State private var gameOver = false
+    @State private var turnToken = 0
 
     var body: some View {
         ScrollView {
@@ -212,24 +213,47 @@ struct ChessBotSession: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    // Black's advantage is positive. Positional scoring makes the beginner bot
+    // prefer development and central control, not only random material exchanges.
     private func evaluate(fen: String) -> Int {
-        let value: [Character: Int] = ["p":100,"n":320,"b":330,"r":500,"q":900,"k":0]
-        return String(fen.split(separator:" ").first ?? "").reduce(0) { score, p in
-            let weight = value[Character(String(p).lowercased())] ?? 0
-            return score + (p.isLowercase ? weight : -weight)
+        let values: [Character: Int] = ["p":100, "n":320, "b":330, "r":500, "q":900, "k":0]
+        let ranks = String(fen.split(separator: " ").first ?? "").split(separator: "/")
+        var result = 0
+        for (rankIndex, rank) in ranks.enumerated() {
+            var file = 0
+            for character in rank {
+                if let skip = character.wholeNumberValue {
+                    file += skip
+                    continue
+                }
+                let kind = Character(String(character).lowercased())
+                let isBlack = character.isLowercase
+                let progress = isBlack ? rankIndex - 1 : 6 - rankIndex
+                let center = (3...4).contains(file) && (3...4).contains(rankIndex) ? 15 : 0
+                let pawnAdvance = kind == "p" ? max(0, progress) * 6 : 0
+                let development = (kind == "n" || kind == "b") && (2...5).contains(rankIndex) ? 12 : 0
+                let score = (values[kind] ?? 0) + center + pawnAdvance + development
+                result += isBlack ? score : -score
+                file += 1
+            }
         }
+        return result
     }
 
     private func score(position: Position, move: Move, lookAhead: Bool) -> Int {
         let child = Game(position: position)
         child.make(move: move)
+        if child.isMate { return 100_000 }
+        let replies = Array(child.legalMoves)
+        if replies.isEmpty { return 0 } // Stalemate is not a victory.
         let now = evaluate(fen: FenSerialization.default.serialize(position: child.position))
         if !lookAhead { return now }
-        let replies = Array(child.legalMoves)
-        if replies.isEmpty { return now }
+        // The hard bot avoids moves refuted by White's strongest immediate reply.
         return replies.map { reply in
             let branch = Game(position: child.position)
             branch.make(move: reply)
+            if branch.isMate { return -100_000 }
+            if branch.legalMoves.isEmpty { return 0 }
             return evaluate(fen: FenSerialization.default.serialize(position: branch.position))
         }.min() ?? now
     }
@@ -237,7 +261,9 @@ struct ChessBotSession: View {
     private func botTurn() {
         thinking = true
         feedback = "Bot düşünüyor..."
+        let requestedTurn = turnToken
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            guard requestedTurn == turnToken, thinking, !gameOver else { return }
             let candidates = Array(boardModel.game.legalMoves)
             guard !candidates.isEmpty else { thinking = false; endCheck(); return }
             let source = boardModel.game.position
@@ -261,13 +287,21 @@ struct ChessBotSession: View {
     }
 
     private func endCheck() {
-        if Array(boardModel.game.legalMoves).isEmpty {
+        if boardModel.game.isMate {
             gameOver = true
-            feedback = "Oyun sona erdi. Yeni maç başlatabilirsin."
+            let whiteTurn = FenSerialization.default.serialize(position: boardModel.game.position)
+                .split(separator: " ").dropFirst().first == "w"
+            feedback = whiteTurn ? "Şah mat! Bilgisayar kazandı." : "Şah mat! Sen kazandın."
+        } else if boardModel.game.legalMoves.isEmpty {
+            gameOver = true
+            feedback = "Pat: oyun berabere."
+        } else if boardModel.game.isCheck {
+            feedback = "Şah! Tehdit altındaki şahı koru."
         }
     }
 
     private func reset() {
+        turnToken += 1
         boardModel.setFen(AcademyCourse.initial)
         gameOver = false
         thinking = false
