@@ -15,7 +15,8 @@ struct SimulationMoveReplay: View {
         self.timeline = timeline
         _boardModel = State(initialValue: ChessboardModel(
             fen: scenario.startFen,
-            perspective: .white
+            perspective: .white,
+            colorScheme: PremiumBoardColors()
         ))
     }
 
