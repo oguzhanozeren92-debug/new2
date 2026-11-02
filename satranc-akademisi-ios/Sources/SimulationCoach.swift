@@ -106,6 +106,21 @@ enum ChessMoveCoach {
             }
         }
 
+        // Point out a concrete missed mate-in-one, but never call it an
+        // objectively best engine move. This is directly verifiable with ChessKit.
+        if !after.isMate {
+            let otherMate = game.legalMoves.first { candidate in
+                guard candidate != move else { return false }
+                let test = game.deepCopy()
+                test.make(move: candidate)
+                return test.isMate
+            }
+            if let otherMate {
+                let alternative = SanSerialization().san(for: otherMate, in: game)
+                warnings.append("Bir mat fırsatı vardı: \(TurkishMoveNotation.explained(alternative)). Tek hamlede matı aramayı unutma.")
+            }
+        }
+
         if scenarioBeat == nil && !after.isMate && !after.isCheck && !capture && warnings.isEmpty {
             details.append("Hamle yasal. Bir sonraki adımda rakibin cevaplarını ve tehdit edilen taşları düşün.")
         }
