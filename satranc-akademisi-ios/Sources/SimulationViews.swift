@@ -222,16 +222,16 @@ struct SimulationSessionView: View {
                     )
                 }
 
-                GeometryReader { proxy in
+                PremiumChessBoardFrame {
+                    GeometryReader { proxy in
                     Chessboard(chessboardModel: boardModel)
                         .onMove { move, isLegal, from, to, lan, promotionPiece in
                             playerMove(move, isLegal: isLegal)
                         }
                         .frame(width: proxy.size.width, height: proxy.size.width)
+                    }
+                    .aspectRatio(1, contentMode: .fit)
                 }
-                .aspectRatio(1, contentMode: .fit)
-                .padding(5)
-                .background(Theme.gold.opacity(0.55), in: RoundedRectangle(cornerRadius: 9))
 
                 VStack(alignment: .leading, spacing: 9) {
                     HStack(spacing: 8) {
@@ -325,7 +325,7 @@ struct SimulationSessionView: View {
             .frame(maxWidth: 690)
             .frame(maxWidth: .infinity)
         }
-        .background(Theme.background.ignoresSafeArea())
+        .background(PremiumBackdrop())
         .navigationTitle("Simülasyon")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
