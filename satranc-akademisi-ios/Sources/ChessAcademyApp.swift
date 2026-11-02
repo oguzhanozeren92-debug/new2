@@ -692,45 +692,127 @@ struct AcademyProfileView: View {
     @Binding var nickname: String
     @Binding var skill: String
     @AppStorage("academy.completed") private var completed = ""
+    @AppStorage("academy.scenarios.completed") private var scenarioProgress = ""
+    @AppStorage("academy.beginnerJourneyDone") private var beginnerDone = false
     @State private var confirmErase = false
     @State private var showPrivacy = false
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Oyuncu") {
-                    TextField("Rumuz (isteğe bağlı)", text: $nickname)
-                        .textContentType(.nickname)
-                        .autocorrectionDisabled()
-                    Text("Rumuz yazmak zorunda değilsin. Boş bırakırsan Misafir olarak devam edersin.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    LabeledContent("Başlangıç", value: skill)
-                    LabeledContent("Tamamlanan ders", value: "\(completed.split(separator: ",").count)")
-                }
-                Section("Gizlilik ve Destek") {
-                    Link("Gizlilik Politikası", destination: URL(string: "https://github.com/oguzhanozeren92-debug/new2/blob/main/satranc-akademisi-ios/GIZLILIK_POLITIKASI.md")!)
-                    Link("Destek ve İletişim", destination: URL(string: "https://github.com/oguzhanozeren92-debug/new2/blob/main/satranc-akademisi-ios/DESTEK.md")!)
-                    Button("Cihazdaki veri kullanımı") { showPrivacy = true }
-                }
-                Section {
-                    Button("Yerel ilerlemeyi ve profili sil", role: .destructive) { confirmErase = true }
-                } footer: {
-                    Text("Bu ilk sürüm hesap oluşturmaz. Rumuz ve ders ilerlemesi yalnızca cihazda tutulur. Silme işlemi yerel verileri temizler.")
+            ZStack {
+                PremiumBackdrop()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 17) {
+                        PremiumPanel(accent: true) {
+                            HStack(spacing: 16) {
+                                ChessPieceBadge(piece: .queen, size: 82, highlighted: true)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("OYUNCU KÖŞESİ")
+                                        .font(.system(size: 10, weight: .heavy))
+                                        .tracking(1.5)
+                                        .foregroundStyle(Theme.gold)
+                                    Text(nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                         ? "Misafir Oyuncu" : nickname)
+                                        .font(.system(.title2, design: .serif, weight: .bold))
+                                        .foregroundStyle(Theme.cream)
+                                        .lineLimit(2)
+                                        .minimumScaleFactor(0.75)
+                                    Text("Kendi hızında satranç öğren.")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.pale)
+                                }
+                            }
+                        }
+
+                        PremiumSectionHeading(title: "İlerlemen",
+                                              eyebrow: "HER HAMLE BİR ADIM")
+                        HStack(spacing: 10) {
+                            PremiumStat(value: String(completed.split(separator: ",").count),
+                                        label: "Ders", piece: .pawn)
+                            PremiumStat(value: String(scenarioProgress.split(separator: ",").count),
+                                        label: "Senaryo", piece: .knight)
+                            PremiumStat(value: beginnerDone ? "1" : "0",
+                                        label: "İlk adım", piece: .king)
+                        }
+
+                        PremiumSectionHeading(title: "Oyuncu Bilgileri",
+                                              eyebrow: "İSTEĞE BAĞLI")
+                        PremiumPanel {
+                            VStack(alignment: .leading, spacing: 11) {
+                                Label("Rumuz", systemImage: "person.crop.circle")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.champagne)
+                                TextField("İstersen bir rumuz yaz", text: $nickname)
+                                    .textContentType(.nickname)
+                                    .autocorrectionDisabled()
+                                    .padding(13)
+                                    .foregroundStyle(Theme.cream)
+                                    .background(Theme.midnight, in: RoundedRectangle(cornerRadius: 12))
+                                    .overlay(RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Theme.border.opacity(0.6), lineWidth: 1))
+                                Text("Rumuz zorunlu değil. Boş bırakırsan misafir olarak devam edebilirsin.")
+                                    .font(.footnote)
+                                    .foregroundStyle(Theme.pale)
+                                Divider().overlay(Theme.gold.opacity(0.25))
+                                HStack {
+                                    Text("Başlangıç seviyesi")
+                                        .foregroundStyle(Theme.pale)
+                                    Spacer()
+                                    Text(skill).foregroundStyle(Theme.gold)
+                                }
+                                .font(.subheadline)
+                            }
+                        }
+
+                        PremiumSectionHeading(title: "Destek ve Gizlilik",
+                                              eyebrow: "KONTROL SENDE")
+                        PremiumPanel {
+                            VStack(alignment: .leading, spacing: 14) {
+                                Link(destination: URL(string: "https://github.com/oguzhanozeren92-debug/new2/blob/main/satranc-akademisi-ios/GIZLILIK_POLITIKASI.md")!) {
+                                    Label("Gizlilik Politikası", systemImage: "lock.shield")
+                                }
+                                Link(destination: URL(string: "https://github.com/oguzhanozeren92-debug/new2/blob/main/satranc-akademisi-ios/DESTEK.md")!) {
+                                    Label("Destek ve İletişim", systemImage: "envelope")
+                                }
+                                Button { showPrivacy = true } label: {
+                                    Label("Cihazdaki veri kullanımı", systemImage: "iphone")
+                                }
+                            }
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Theme.champagne)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+
+                        Button(role: .destructive) { confirmErase = true } label: {
+                            Label("Yerel ilerlemeyi ve profili sil",
+                                  systemImage: "trash")
+                                .frame(maxWidth: .infinity, minHeight: 47)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+
+                        Text("Bu sürüm çevrimiçi hesap açmaz. Rumuz ve ilerleme yalnızca cihazında saklanır.")
+                            .font(.footnote)
+                            .foregroundStyle(Theme.pale)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: 720)
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Theme.background)
-            .navigationTitle("Profil ve Ayarlar")
+            .navigationTitle("Profil")
+            .navigationBarTitleDisplayMode(.inline)
             .alert("Verilerini sil?", isPresented: $confirmErase) {
                 Button("Vazgeç", role: .cancel) { }
                 Button("Sil", role: .destructive) {
                     completed = ""
+                    scenarioProgress = ""
+                    beginnerDone = false
                     skill = "Yeni başlıyorum"
                     nickname = ""
                 }
             } message: {
-                Text("Bu cihazdaki rumuz ve ders ilerlemesi silinir. İşlem geri alınamaz.")
+                Text("Bu cihazdaki rumuz, senaryo ve ders ilerlemesi silinir. İşlem geri alınamaz.")
             }
             .sheet(isPresented: $showPrivacy) {
                 NavigationStack {
@@ -743,8 +825,13 @@ struct AcademyProfileView: View {
                         .font(.body)
                         .padding(20)
                     }
+                    .background(PremiumBackdrop())
                     .navigationTitle("Gizlilik")
-                    .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Kapat") { showPrivacy = false } } }
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Kapat") { showPrivacy = false }
+                        }
+                    }
                 }
             }
         }
