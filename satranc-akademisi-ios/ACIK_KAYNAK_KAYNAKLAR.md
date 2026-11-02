@@ -48,7 +48,7 @@ MIT ve BSD lisanslarının gerektirdiği telif, lisans ve sorumluluk reddi bildi
 
 ## Projedeki son durum
 
-- iPhone SwiftUI: 36 ders (ilk 16 + 11 açılış + 4 oyun sonu + 5 taktik), 11 bulmaca, 10 açıklamalı taktik kavramı ve 3 basit bot seviyesi.
-- Web yedek prototipi: 36 ders ve 11 bulmaca eşleştirildi. Web hâlâ canlı kullanım için doğrulanmadı.
+- iPhone SwiftUI: 43 ders (ilk 16 + 7 ilk hamle + 11 açılış + 4 oyun sonu + 5 taktik), 11 bulmaca, 10 açıklamalı taktik kavramı ve 3 basit bot seviyesi.
+- Web yedek prototipi: 43 ders ve 11 bulmaca eşleştirildi. Web hâlâ canlı kullanım için doğrulanmadı.
 - iOS gerçek derleme, oynanış otomasyon testleri, TestFlight ve web canlı erişim testi **henüz doğrulanmadı**.
 - Vercel'in ücretsiz günlük dağıtım kotası dolduğu için web sürümünü canlıya yeniden dağıtma işlemi ayrıca yapılmalı.
