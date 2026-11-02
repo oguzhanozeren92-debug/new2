@@ -472,6 +472,11 @@ struct SimulationReportView: View {
                 Text("Bu rapor bir ELO veya motor puanı değildir. Tehdit, yasal hamle ve senaryo hedefi üzerinden hazırlanır.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Hamleleri tahtada geri sar") {
+                SimulationMoveReplay(scenario: scenario, timeline: timeline)
+                    .padding(.vertical, 8)
+            }
+
             Section("Her hamlenin ayrı analizi") {
                 ForEach(timeline) { record in
                     VStack(alignment: .leading, spacing: 8) {
