@@ -1,7 +1,23 @@
 import SwiftUI
+import UIKit
 
 @main
 struct SatrancAkademisiApp: App {
+    init() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(red: 0.035, green: 0.075, blue: 0.12, alpha: 1)
+        appearance.shadowColor = UIColor(red: 0.4, green: 0.32, blue: 0.18, alpha: 0.45)
+        let active = UIColor(red: 0.97, green: 0.80, blue: 0.53, alpha: 1)
+        let inactive = UIColor(red: 0.54, green: 0.63, blue: 0.68, alpha: 1)
+        appearance.stackedLayoutAppearance.selected.iconColor = active
+        appearance.stackedLayoutAppearance.normal.iconColor = inactive
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: active]
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: inactive]
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+
     var body: some Scene {
         WindowGroup {
             AcademyRootView()
@@ -12,24 +28,25 @@ struct SatrancAkademisiApp: App {
 }
 
 enum Theme {
-    static let background = Color(red: 0.035, green: 0.085, blue: 0.14)
-    static let surface = Color(red: 0.075, green: 0.16, blue: 0.23)
-    static let gold = Color(red: 0.92, green: 0.73, blue: 0.45)
-    static let cream = Color(red: 0.98, green: 0.92, blue: 0.81)
+    static let background = Color(red: 0.024, green: 0.050, blue: 0.095)
+    static let surface = Color(red: 0.075, green: 0.145, blue: 0.212)
+    static let gold = Color(red: 0.90, green: 0.69, blue: 0.40)
+    static let cream = Color(red: 0.98, green: 0.94, blue: 0.86)
 }
 
 enum AcademyTab: String, CaseIterable, Identifiable {
     case home = "Ana Sayfa", lessons = "Dersler", puzzles = "Bulmaca", play = "Oyna", profile = "Profil"
     var id: String { rawValue }
-    var icon: String {
+    var chessPiece: PremiumChessPiece {
         switch self {
-        case .home: return "house.fill"
-        case .lessons: return "books.vertical.fill"
-        case .puzzles: return "square.grid.3x3.fill"
-        case .play: return "checkerboard.rectangle"
-        case .profile: return "person.crop.circle.fill"
+        case .home: return .king
+        case .lessons: return .pawn
+        case .puzzles: return .knight
+        case .play: return .rook
+        case .profile: return .queen
         }
     }
+    var tabImage: UIImage { ChessTabArt.image(for: chessPiece) }
 }
 
 struct AcademyRootView: View {
@@ -42,23 +59,53 @@ struct AcademyRootView: View {
             AcademyHomeView(nickname: nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Misafir" : nickname) {
                 selectedTab = .lessons
             }
-            .tabItem { Label(AcademyTab.home.rawValue, systemImage: AcademyTab.home.icon) }
+            .tabItem {
+                    Label {
+                        Text(AcademyTab.home.rawValue)
+                    } icon: {
+                        Image(uiImage: AcademyTab.home.tabImage)
+                    }
+                }
             .tag(AcademyTab.home)
 
             CoursesView()
-                .tabItem { Label(AcademyTab.lessons.rawValue, systemImage: AcademyTab.lessons.icon) }
+                .tabItem {
+                    Label {
+                        Text(AcademyTab.lessons.rawValue)
+                    } icon: {
+                        Image(uiImage: AcademyTab.lessons.tabImage)
+                    }
+                }
                 .tag(AcademyTab.lessons)
 
             PuzzlesView()
-                .tabItem { Label(AcademyTab.puzzles.rawValue, systemImage: AcademyTab.puzzles.icon) }
+                .tabItem {
+                    Label {
+                        Text(AcademyTab.puzzles.rawValue)
+                    } icon: {
+                        Image(uiImage: AcademyTab.puzzles.tabImage)
+                    }
+                }
                 .tag(AcademyTab.puzzles)
 
             BotMenuView()
-                .tabItem { Label(AcademyTab.play.rawValue, systemImage: AcademyTab.play.icon) }
+                .tabItem {
+                    Label {
+                        Text(AcademyTab.play.rawValue)
+                    } icon: {
+                        Image(uiImage: AcademyTab.play.tabImage)
+                    }
+                }
                 .tag(AcademyTab.play)
 
             AcademyProfileView(nickname: $nickname, skill: $skill)
-                .tabItem { Label(AcademyTab.profile.rawValue, systemImage: AcademyTab.profile.icon) }
+                .tabItem {
+                    Label {
+                        Text(AcademyTab.profile.rawValue)
+                    } icon: {
+                        Image(uiImage: AcademyTab.profile.tabImage)
+                    }
+                }
                 .tag(AcademyTab.profile)
         }
         .background(Theme.background.ignoresSafeArea())
@@ -68,92 +115,289 @@ struct AcademyRootView: View {
 struct AcademyHomeView: View {
     let nickname: String
     let onLearning: () -> Void
+
     @AppStorage("academy.completed") private var completed = ""
+    @AppStorage("academy.beginnerJourneyDone") private var started = false
+    @AppStorage("academy.scenarios.completed") private var completedScenarios = ""
+
+    private var totalLessons: Int { AcademyCourse.all.reduce(0) { $0 + $1.lessons.count } }
+    private var finishedLessons: Int {
+        let ids = Set(completed.split(separator: ",").map(String.init))
+        return AcademyCourse.all.reduce(0) { $0 + $1.lessons.filter { ids.contains($0.id) }.count }
+    }
+    private var finishedScenarios: Int {
+        Set(completedScenarios.split(separator: ",").map(String.init)).count
+    }
+    private let grid = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("SATranç AKADEMİSİ").font(.caption.weight(.heavy)).tracking(2).foregroundStyle(Theme.gold)
-                        Text("Her hamlede daha iyi ol.")
-                            .font(.system(.largeTitle, design: .serif, weight: .bold))
-                            .foregroundStyle(Theme.cream)
-                        Text("Satranç bilmiyor musun? Önce taşları tanı, sonra adı olan hamleleri ve taktikleri tahtada deneyerek öğren. Merhaba, \(nickname)!")
-                            .foregroundStyle(.secondary)
-                        NavigationLink {
-                            BeginnerJourneyView()
-                        } label: {
-                            Label("♟ Sıfırdan Başla — Hiç bilmiyorum", systemImage: "graduationcap.fill")
-                                .frame(maxWidth: .infinity, minHeight: 49)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Theme.gold)
-                        .foregroundStyle(.black)
-                        Button(action: onLearning) {
-                            Label("Ders listesini gör", systemImage: "books.vertical")
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                    .padding(22)
-                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 20))
-                    NavigationLink {
-                        SimulationHubView()
-                    } label: {
-                        HStack(spacing: 13) {
-                            Image(systemName: "theatermasks.fill")
-                                .font(.system(size: 32))
-                                .foregroundStyle(Theme.gold)
-                                .frame(width: 46, height: 50)
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("SENARYOLU SİMÜLASYON")
-                                    .font(.caption.weight(.heavy))
-                                    .foregroundStyle(Theme.gold)
-                                Text("Hamleni yap, Hamle Hocası analiz etsin")
-                                    .font(.headline)
-                                    .foregroundStyle(Theme.cream)
-                                Text("6 senaryo + koçlu serbest maç · Hamle sonu raporu")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right").foregroundStyle(Theme.gold)
-                        }
-                        .padding(16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            LinearGradient(colors: [Theme.surface, Theme.gold.opacity(0.18)],
-                                           startPoint: .leading, endPoint: .trailing),
-                            in: RoundedRectangle(cornerRadius: 17)
-                        )
-                        .overlay(RoundedRectangle(cornerRadius: 17).stroke(Theme.gold.opacity(0.5), lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
+            ZStack {
+                PremiumBackdrop()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 21) {
+                        topIdentity
+                        featureHero
 
-                    Text("Öğrenme Yolun")
-                        .font(.system(.title2, design: .serif, weight: .bold))
-                    ForEach(AcademyCourse.all) { course in
-                        HStack(spacing: 14) {
-                            Image(systemName: course.symbol)
-                                .font(.title2)
-                                .foregroundStyle(Theme.gold)
-                                .frame(width: 44, height: 44)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(course.title).font(.headline)
-                                Text(course.summary).font(.footnote).foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 0)
+                        HStack(spacing: 9) {
+                            PremiumStat(value: String(finishedLessons) + "/" + String(totalLessons),
+                                        label: "Tamamlanan ders", piece: .pawn)
+                            PremiumStat(value: String(finishedScenarios) + "/7",
+                                        label: "Senaryo", piece: .knight)
+                            PremiumStat(value: "3", label: "Bot seviyesi", piece: .rook)
                         }
-                        .padding(13)
-                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 15))
+
+                        NavigationLink {
+                            SimulationHubView()
+                        } label: {
+                            PremiumPanel(accent: true) {
+                                HStack(alignment: .center, spacing: 14) {
+                                    ChessPieceBadge(piece: .knight, size: 64, highlighted: true)
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text("SENARYO MODU")
+                                            .font(.system(size: 10, weight: .heavy))
+                                            .tracking(1.5)
+                                            .foregroundStyle(Theme.gold)
+                                        Text("Yaşayarak öğren")
+                                            .font(.system(.title3, design: .serif, weight: .bold))
+                                            .foregroundStyle(Theme.cream)
+                                        Text("Hamleni yap, koçun her kararını açıklasın.")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.pale)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    Spacer(minLength: 0)
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.subheadline.weight(.bold))
+                                        .foregroundStyle(Theme.gold)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        PremiumSectionHeading(title: "Öğrenme Yolun",
+                                              eyebrow: "ADIM ADIM İLERLE",
+                                              count: String(AcademyCourse.all.count) + " bölüm")
+                        LazyVGrid(columns: grid, spacing: 12) {
+                            ForEach(AcademyCourse.all) { course in
+                                NavigationLink {
+                                    PremiumCourseDetailView(course: course)
+                                } label: {
+                                    courseTile(course)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        Text("Şampiyonlar hamleleri ezberlemez; neden yaptıklarını öğrenir.")
+                            .font(.footnote.italic())
+                            .foregroundStyle(Theme.pale)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 18)
+                    .padding(.bottom, 24)
+                    .frame(maxWidth: 720)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .navigationBarHidden(true)
+        }
+    }
+
+    private var topIdentity: some View {
+        HStack(spacing: 12) {
+            ChessPieceBadge(piece: .king, size: 47, highlighted: true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("SATRANÇ AKADEMİSİ")
+                    .font(.system(.subheadline, design: .serif, weight: .heavy))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.champagne)
+                Text("Düşün. Hamle yap. Öğren.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.pale)
+            }
+            Spacer(minLength: 6)
+            Text("♛")
+                .font(.system(size: 24, design: .serif))
+                .foregroundStyle(Theme.gold)
+                .frame(width: 40, height: 40)
+                .background(Theme.gold.opacity(0.12), in: Circle())
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var featureHero: some View {
+        PremiumPanel(accent: true, padding: 22) {
+            VStack(alignment: .leading, spacing: 15) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(started ? "ÖĞRENMEYE DEVAM" : "İLK HAMLE SENİN")
+                            .font(.system(size: 10, weight: .heavy))
+                            .tracking(1.9)
+                            .foregroundStyle(Theme.champagne)
+                        Text(started ? "Tahtaya geri dön." : "Bir hamleyle başlar.")
+                            .font(.system(size: 32, weight: .bold, design: .serif))
+                            .minimumScaleFactor(0.75)
+                            .foregroundStyle(Theme.cream)
+                        Text("Merhaba, " + nickname + "! Satrancı hiç bilmesen de burada sıfırdan öğrenebilirsin.")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.pale)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 4)
+                    Text("♞")
+                        .font(.system(size: 78, design: .serif))
+                        .foregroundStyle(Theme.metal)
+                        .shadow(color: Theme.gold.opacity(0.22), radius: 10, y: 5)
+                        .accessibilityHidden(true)
+                }
+                HStack(spacing: 9) {
+                    Image(systemName: "sparkle")
+                        .foregroundStyle(Theme.gold)
+                    Text("Ücretsiz · Rumuz zorunlu değil · Süre baskısı yok")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(Theme.pale)
+                }
+
+                NavigationLink {
+                    BeginnerJourneyView()
+                } label: {
+                    HStack {
+                        Text(started ? "Kaldığın yerden başla" : "Sıfırdan Satranç Öğren")
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .buttonStyle(PremiumPrimaryButtonStyle())
+
+                Button(action: onLearning) {
+                    HStack {
+                        Image(systemName: "square.grid.2x2")
+                        Text("Tüm dersleri keşfet")
+                    }
+                }
+                .buttonStyle(PremiumPrimaryButtonStyle(secondary: true))
+            }
+        }
+    }
+
+    private func coursePiece(_ id: String) -> PremiumChessPiece {
+        switch id {
+        case "ilk-adim", "baslangic": return .pawn
+        case "kurallar": return .king
+        case "plan": return .bishop
+        case "taktikler": return .knight
+        case "acilislar": return .queen
+        case "oyunsonu": return .rook
+        default: return .pawn
+        }
+    }
+
+    private func courseTile(_ course: AcademyCourse) -> some View {
+        PremiumPanel(padding: 13) {
+            VStack(alignment: .leading, spacing: 11) {
+                HStack {
+                    ChessPieceBadge(piece: coursePiece(course.id), size: 46)
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.up.right")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Theme.gold)
+                }
+                Text(course.title)
+                    .font(.system(.subheadline, design: .serif, weight: .bold))
+                    .foregroundStyle(Theme.cream)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                Text(course.summary)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.pale)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer(minLength: 0)
+                Text(String(course.lessons.count) + " DERS")
+                    .font(.system(size: 10, weight: .heavy))
+                    .tracking(1)
+                    .foregroundStyle(Theme.gold)
+            }
+            .frame(maxWidth: .infinity, minHeight: 165, alignment: .topLeading)
+        }
+    }
+}
+
+struct PremiumCourseDetailView: View {
+    let course: AcademyCourse
+    @AppStorage("academy.completed") private var completed = ""
+
+    private var icon: PremiumChessPiece {
+        switch course.id {
+        case "ilk-adim", "baslangic": return .pawn
+        case "kurallar": return .king
+        case "plan": return .bishop
+        case "taktikler": return .knight
+        case "acilislar": return .queen
+        case "oyunsonu": return .rook
+        default: return .pawn
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            PremiumBackdrop()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    PremiumPanel(accent: true) {
+                        HStack(spacing: 15) {
+                            ChessPieceBadge(piece: icon, size: 74, highlighted: true)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(course.title)
+                                    .font(.system(.title2, design: .serif, weight: .bold))
+                                    .foregroundStyle(Theme.cream)
+                                Text(course.summary)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.pale)
+                            }
+                        }
+                    }
+                    ForEach(Array(course.lessons.enumerated()), id: \.element.id) { index, lesson in
+                        NavigationLink {
+                            ChessLessonSession(lesson: lesson)
+                        } label: {
+                            PremiumPanel(padding: 14) {
+                                HStack(spacing: 13) {
+                                    Text(String(format: "%02d", index + 1))
+                                        .font(.title3.monospacedDigit().weight(.bold))
+                                        .foregroundStyle(Theme.champagne)
+                                        .frame(width: 36)
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(lesson.title)
+                                            .font(.headline)
+                                            .foregroundStyle(Theme.cream)
+                                        Text(lesson.goal)
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.pale)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    Spacer(minLength: 0)
+                                    Image(systemName: completed.split(separator: ",").contains(Substring(lesson.id))
+                                          ? "checkmark.seal.fill" : "chevron.right")
+                                        .foregroundStyle(Theme.gold)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(16)
+                .frame(maxWidth: 720)
+                .frame(maxWidth: .infinity)
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Satranç Akademisi")
         }
+        .navigationTitle(course.title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
