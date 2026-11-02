@@ -362,7 +362,8 @@ struct PremiumCourseDetailView: View {
                             }
                         }
                     }
-                    ForEach(Array(course.lessons.enumerated()), id: \.element.id) { index, lesson in
+                    ForEach(course.lessons.indices, id: \.self) { index in
+                        let lesson = course.lessons[index]
                         NavigationLink {
                             ChessLessonSession(lesson: lesson)
                         } label: {
@@ -575,7 +576,8 @@ struct PuzzlesView: View {
                         PremiumSectionHeading(title: "Bulmacalar",
                                               eyebrow: "DÜŞÜN · BUL · ÖĞREN",
                                               count: String(AcademyCourse.puzzles.count))
-                        ForEach(Array(AcademyCourse.puzzles.enumerated()), id: \.element.id) { index, lesson in
+                        ForEach(AcademyCourse.puzzles.indices, id: \.self) { index in
+                            let lesson = AcademyCourse.puzzles[index]
                             NavigationLink {
                                 ChessLessonSession(lesson: lesson)
                             } label: {
@@ -642,7 +644,8 @@ struct BotMenuView: View {
                         PremiumSectionHeading(title: "Zorluk Seç",
                                               eyebrow: "SANA UYGUN RAKİP",
                                               count: "3 seviye")
-                        ForEach(Array(BotDifficulty.allCases.enumerated()), id: \.element.id) { index, level in
+                        ForEach(BotDifficulty.allCases.indices, id: \.self) { index in
+                            let level = BotDifficulty.allCases[index]
                             NavigationLink {
                                 ChessBotSession(difficulty: level)
                             } label: {
