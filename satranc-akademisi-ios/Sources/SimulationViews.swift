@@ -129,7 +129,8 @@ struct SimulationSessionView: View {
         self.scenario = scenario
         _boardModel = State(initialValue: ChessboardModel(
             fen: scenario.startFen,
-            perspective: .white
+            perspective: .white,
+            colorScheme: PremiumBoardColors()
         ))
     }
 
