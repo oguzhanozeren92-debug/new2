@@ -362,8 +362,11 @@ struct SimulationSessionView: View {
         let verdict = ChessMoveCoach.evaluate(game: before, move: move, scenarioBeat: currentBeat)
         let spokenMove = TurkishMoveNotation.describe(move, in: before)
 
-        before.make(move: move)
-        let fenAfter = FenSerialization.default.serialize(position: before.position)
+        // Keep the visible board's original position intact until setFen,
+        // so ChessboardKit can animate from the true source square.
+        let progressed = before.deepCopy()
+        progressed.make(move: move)
+        let fenAfter = FenSerialization.default.serialize(position: progressed.position)
         boardModel.setFen(fenAfter, lan: move.description)
         boardModel.clearHint()
 
