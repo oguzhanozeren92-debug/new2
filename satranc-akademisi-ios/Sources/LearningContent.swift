@@ -61,8 +61,7 @@ struct AcademyCourse: Identifiable {
                 ("b8c6", "Siyah e5 piyonunu savundu."),
                 ("f1c4", "İtalyan Açılışı kuruldu.")
             ])
-        ])
-        ,
+        ]),
         AcademyCourse(id: "acilislar", title: "4. Açılış Akademisi", summary: "Lichess CC0 açılış verilerinden seçilmiş 11 gerçek açılışı tahtada uygula.", symbol: "book.closed.fill", lessons: [
             TrainingLesson("sicilya", "Sicilya Savunması", "ECO B20. Siyah, 1.e4'e ...c5 ile asimetrik karşılık verir. Temel fikir d4 karesini kontrol etmektir.", "e4 oyna ve siyahın c5 yanıtını izle.", initial, [
                 ("e2e4", "Merkezde alan kazandın."),
