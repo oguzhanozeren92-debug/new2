@@ -126,7 +126,7 @@ struct CoursesView: View {
                     NavigationLink {
                         MoveNotationGuideView()
                     } label: {
-                        Label("Hamlelerin dili: Af3, 0-0, +, #", systemImage: "text.book.closed.fill")
+                        Label("Hamlelerin dili: Af3, O-O, +, #", systemImage: "text.book.closed.fill")
                             .foregroundStyle(Theme.gold)
                     }
                     NavigationLink {
