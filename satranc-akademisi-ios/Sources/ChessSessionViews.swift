@@ -26,6 +26,13 @@ struct ChessLessonSession: View {
                     Text(lesson.title)
                         .font(.system(.title2, design: .serif, weight: .bold))
                     Text(lesson.description).font(.body).foregroundStyle(.secondary)
+                    if let tactic = TacticConcept.forLesson(lesson.id) {
+                        Label(tactic.title + " · " + tactic.internationalName, systemImage: "lightbulb.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.gold)
+                        Text("Akılda tut: " + tactic.remember)
+                            .font(.footnote)
+                    }
                     Text(finished ? "Ders tamamlandı." : lesson.goal)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.gold)
@@ -34,6 +41,15 @@ struct ChessLessonSession: View {
                 .padding(15)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
 
+                HStack {
+                    Text("Hamle " + String(min(stepIndex + 1, lesson.steps.count)) + " / " + String(lesson.steps.count))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.gold)
+                    Spacer()
+                    Text("Taş seç → hedef kareye dokun")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 ProgressView(value: Double(stepIndex),
                              total: Double(max(lesson.steps.count, 1))).tint(Theme.gold)
 
@@ -47,6 +63,20 @@ struct ChessLessonSession: View {
                 .aspectRatio(1, contentMode: .fit)
                 .padding(5)
                 .background(Theme.gold.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+
+                if let tactic = TacticConcept.forLesson(lesson.id) {
+                    DisclosureGroup("Bu taktiği nasıl fark ederim?") {
+                        VStack(alignment: .leading, spacing: 9) {
+                            Text(tactic.spotIt)
+                            Text("Dikkat: " + tactic.commonMistake)
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.subheadline)
+                        .padding(.top, 8)
+                    }
+                    .padding(13)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                }
 
                 if !feedback.isEmpty {
                     Text(feedback)
@@ -91,11 +121,12 @@ struct ChessLessonSession: View {
             feedback = "Bu hamle yasal ama hedef farklı: " + lesson.goal
             return
         }
+        let humanMove = TurkishMoveNotation.describe(move, in: boardModel.game)
         boardModel.game.make(move: move)
         withAnimation(.easeInOut(duration: 0.2)) {
             boardModel.setFen(FenSerialization.default.serialize(position: boardModel.game.position), lan: lan)
         }
-        feedback = lesson.steps[stepIndex].explanation
+        feedback = humanMove + "\n" + lesson.steps[stepIndex].explanation
         stepIndex += 1
         if stepIndex == lesson.steps.count { finish() }
         else { playDemonstration() }
@@ -105,12 +136,13 @@ struct ChessLessonSession: View {
         while stepIndex < lesson.steps.count,
               boardModel.game.position.fen.split(separator: " ").dropFirst().first == "b" {
             let reply = lesson.steps[stepIndex]
+            let humanMove = TurkishMoveNotation.describe(Move(string: reply.uci), in: boardModel.game)
             boardModel.game.make(move: reply.uci)
             withAnimation(.easeInOut(duration: 0.25)) {
                 boardModel.setFen(FenSerialization.default.serialize(position: boardModel.game.position),
                                   lan: reply.uci)
             }
-            feedback = "Siyah oynadı: " + reply.explanation
+            feedback = "Siyah oynadı: " + humanMove + "\n" + reply.explanation
             stepIndex += 1
             if stepIndex == lesson.steps.count { finish() }
         }
