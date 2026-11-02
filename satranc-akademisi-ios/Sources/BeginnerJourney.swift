@@ -47,15 +47,23 @@ struct BeginnerJourneyView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 17) {
-                HStack {
-                    Label("SIFIRDAN BAŞLA", systemImage: "graduationcap.fill")
-                        .font(.caption.weight(.heavy))
-                        .tracking(1)
-                        .foregroundStyle(Theme.gold)
-                    Spacer()
-                    Text("\(min(page + 1, 5))/5")
-                        .font(.caption.weight(.heavy))
-                        .foregroundStyle(Theme.gold)
+                PremiumPanel(accent: true, padding: 12) {
+                    HStack(spacing: 12) {
+                        ChessPieceBadge(piece: .pawn, size: 52, highlighted: true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("SIFIRDAN SATRANÇ")
+                                .font(.system(size: 10, weight: .heavy))
+                                .tracking(1.5)
+                                .foregroundStyle(Theme.gold)
+                            Text("İlk hamle yolculuğun")
+                                .font(.system(.headline, design: .serif))
+                                .foregroundStyle(Theme.cream)
+                        }
+                        Spacer(minLength: 0)
+                        Text("\(min(page + 1, 5))/5")
+                            .font(.subheadline.monospacedDigit().weight(.bold))
+                            .foregroundStyle(Theme.champagne)
+                    }
                 }
                 ProgressView(value: Double(page + 1), total: 5)
                     .tint(Theme.gold)
@@ -101,7 +109,7 @@ struct BeginnerJourneyView: View {
             .frame(maxWidth: 640, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .background(Theme.background.ignoresSafeArea())
+        .background(PremiumBackdrop())
         .navigationTitle("Sıfırdan Satranç")
         .navigationBarTitleDisplayMode(.inline)
     }
