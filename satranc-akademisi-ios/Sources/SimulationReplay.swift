@@ -34,14 +34,14 @@ struct SimulationMoveReplay: View {
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
-            GeometryReader { proxy in
+            PremiumChessBoardFrame {
+                GeometryReader { proxy in
                 Chessboard(chessboardModel: boardModel)
                     .allowsHitTesting(false)
                     .frame(width: proxy.size.width, height: proxy.size.width)
+                }
+                .aspectRatio(1, contentMode: .fit)
             }
-            .aspectRatio(1, contentMode: .fit)
-            .padding(4)
-            .background(Theme.gold.opacity(0.35), in: RoundedRectangle(cornerRadius: 7))
 
             if let current {
                 VStack(alignment: .leading, spacing: 6) {
