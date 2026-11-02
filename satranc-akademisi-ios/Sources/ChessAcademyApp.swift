@@ -81,13 +81,20 @@ struct AcademyHomeView: View {
                             .foregroundStyle(Theme.cream)
                         Text("Satranç bilmiyor musun? Önce taşları tanı, sonra adı olan hamleleri ve taktikleri tahtada deneyerek öğren. Merhaba, \(nickname)!")
                             .foregroundStyle(.secondary)
-                        Button(action: onLearning) {
-                            Label("Eğitime Devam Et", systemImage: "play.fill")
-                                .frame(maxWidth: .infinity, minHeight: 44)
+                        NavigationLink {
+                            BeginnerJourneyView()
+                        } label: {
+                            Label("♟ Sıfırdan Başla — Hiç bilmiyorum", systemImage: "graduationcap.fill")
+                                .frame(maxWidth: .infinity, minHeight: 49)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(Theme.gold)
                         .foregroundStyle(.black)
+                        Button(action: onLearning) {
+                            Label("Ders listesini gör", systemImage: "books.vertical")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
                     }
                     .padding(22)
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: 20))
@@ -122,18 +129,17 @@ struct CoursesView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("İlk önce buradan başla") {
+                Section("Satrancı hiç bilmiyorum") {
                     NavigationLink {
-                        MoveNotationGuideView()
+                        BeginnerJourneyView()
                     } label: {
-                        Label("Hamlelerin dili: Af3, O-O, +, #", systemImage: "text.book.closed.fill")
-                            .foregroundStyle(Theme.gold)
-                    }
-                    NavigationLink {
-                        TacticGlossaryView()
-                    } label: {
-                        Label("Taktik sözlüğü: Çatal, Açmaz, Şiş...", systemImage: "lightbulb.fill")
-                            .foregroundStyle(Theme.gold)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Label("0. Sıfırdan Başla", systemImage: "graduationcap.fill")
+                                .font(.headline).foregroundStyle(Theme.gold)
+                            Text("Taşları tanı, tahtaya dokun, beyazın neden başladığını öğren.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 7)
                     }
                 }
                 ForEach(AcademyCourse.all) { course in
@@ -157,6 +163,18 @@ struct CoursesView: View {
                         Label(course.title, systemImage: course.symbol)
                     } footer: {
                         Text(course.summary)
+                    }
+                }
+                Section("Temellerden sonra") {
+                    NavigationLink {
+                        MoveNotationGuideView()
+                    } label: {
+                        Label("Hamleleri okuma: Af3, O-O, +, #", systemImage: "text.book.closed.fill")
+                    }
+                    NavigationLink {
+                        TacticGlossaryView()
+                    } label: {
+                        Label("Taktik sözlüğü: Çatal, Açmaz, Şiş...", systemImage: "lightbulb.fill")
                     }
                 }
             }
