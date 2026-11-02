@@ -135,7 +135,7 @@ struct ChessPieceBadge: View {
 struct PremiumPanel<Content: View>: View {
     var accent: Bool = false
     var padding: CGFloat = 17
-    @ViewBuilder let content: Content
+    let content: Content
 
     init(accent: Bool = false, padding: CGFloat = 17,
          @ViewBuilder content: () -> Content) {
@@ -253,7 +253,7 @@ struct PremiumStat: View {
 }
 
 struct PremiumChessBoardFrame<Content: View>: View {
-    @ViewBuilder let content: Content
+    let content: Content
     init(@ViewBuilder content: () -> Content) { self.content = content() }
 
     var body: some View {
