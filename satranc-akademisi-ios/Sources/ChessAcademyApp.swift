@@ -113,7 +113,7 @@ struct AcademyHomeView: View {
                                 Text("Hamleni yap, Hamle Hocası analiz etsin")
                                     .font(.headline)
                                     .foregroundStyle(Theme.cream)
-                                Text("7 hikâye ve koçlu serbest maç · Hamle sonu raporu")
+                                Text("6 senaryo + koçlu serbest maç · Hamle sonu raporu")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
