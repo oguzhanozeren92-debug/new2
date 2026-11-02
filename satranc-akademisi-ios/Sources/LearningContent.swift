@@ -45,7 +45,7 @@ struct AcademyCourse: Identifiable {
             TrainingLesson("caprazalma", "Piyonla taş alma", "Piyonlar çapraz karedeki rakip taşı alır.", "e4 piyonu ile d5'teki siyah piyonu al.", "k7/8/8/3p4/4P3/8/8/7K w - - 0 1", [("e4d5", "Piyonla çapraz almayı öğrendin.")])
         ]),
         AcademyCourse(id: "kurallar", title: "2. Özel Kurallar", summary: "Şah, mat, rok, geçerken alma ve terfi.", symbol: "crown.fill", lessons: [
-            TrainingLesson("sahcek", "Şah çek", "Rakip şahı tehdit altında kaldığında şah çekmiş olursun.", "Kalenle e2'den e7'ye çıkıp şah çek.", "4k3/8/8/8/8/8/4R3/4K3 w - - 0 1", [("e2e7", "Şah! Rakip şahı tehdit ettin.")]),
+            TrainingLesson("sahcek", "Şah çek", "Rakip şahı tehdit altında kaldığında şah çekmiş olursun.", "Kalenle a2'den e2'ye gelerek şah çek.", "4k3/8/8/8/8/8/R7/4K3 w - - 0 1", [("a2e2", "Şah! Rakip şahı tehdit ettin.")]),
             TrainingLesson("mat", "Tek hamlede mat", "Şahın tehditten kurtulacak yasal hamlesi kalmıyorsa oyun mat ile biter.", "Veziri f7'den g7'ye götür.", "7k/5Q2/5K2/8/8/8/8/8 w - - 0 1", [("f7g7", "Şah mat! Rakibin şahı kaçamıyor.")]),
             TrainingLesson("rok", "Kısa rok", "Şah ve kale daha önce oynamadıysa, araları boşsa ve şah tehdit altından geçmiyorsa rok yapılır.", "Şahı e1'den g1'e taşı.", "4k3/8/8/8/8/8/8/4K2R w K - 0 1", [("e1g1", "Kısa rok ile şahını güvene aldın.")]),
             TrainingLesson("enpassant", "Geçerken alma", "Rakip piyon iki kare ilerleyerek senin piyonunun yanına gelirse hemen sonraki hamlede geçerken alma yapabilirsin.", "e5 piyonu ile d6'ya geçerken alma yap.", "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1", [("e5d6", "Geçerken alma başarılı.")]),
@@ -136,6 +136,6 @@ struct AcademyCourse: Identifiable {
         TrainingLesson("puzzle-arka", "Arka Sıra Matı", "Kendi piyonlarının arkasına sıkışmış siyah şahı tek hamlede mat et.", "Kaleyi a8'e götürerek mat et.", "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1", [("a1a8", "Tebrikler! Arka sıra matı.")]),
         TrainingLesson("puzzle-piyon-terfi", "Terfi Yarışı", "Piyonun son sıraya bir kare uzaklıkta. Kazanan yükseltmeyi bul.", "a7 piyonunu vezire terfi ettir.", "7k/P7/8/8/8/8/8/7K w - - 0 1", [("a7a8q", "Yeni vezir oyuna girdi.")]),
         TrainingLesson("puzzle-rok", "Şahını Güvene Al", "Rakip saldırısına karşı şah güvenliği önemlidir.", "Kısa rok yap.", "4k3/8/8/8/8/8/8/4K2R w K - 0 1", [("e1g1", "Şahını güvenli konuma aldın.")]),
-        TrainingLesson("puzzle-sah", "Şah Tehdidi", "Şah çekerek rakibini yanıt vermeye zorlayabilirsin.", "Kalenle e7'ye çık.", "4k3/8/8/8/8/8/4R3/4K3 w - - 0 1", [("e2e7", "Şahı tehdit ettin.")])
+        TrainingLesson("puzzle-sah", "Şah Tehdidi", "Şah çekerek rakibini yanıt vermeye zorlayabilirsin.", "Kalenle a2'den e2'ye gel.", "4k3/8/8/8/8/8/R7/4K3 w - - 0 1", [("a2e2", "Şahı tehdit ettin.")])
     ]
 }
