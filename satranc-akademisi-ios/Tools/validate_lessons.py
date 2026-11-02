@@ -86,5 +86,35 @@ for lesson_id, (title, fen, sequence) in swift_lessons.items():
     if lesson_id in {"mat", "puzzle-mat", "arka-sira", "puzzle-arka"}:
         assert board.is_checkmate(), f"Expected checkmate in {lesson_id}"
 
+# Scenario simulator: validate every scripted opponent and player move with
+# the same external chess rules engine used for normal lessons.
+simulations = (ROOT / "satranc-akademisi-ios/Sources/SimulationContent.swift").read_text(
+    encoding="utf-8"
+)
+scenario_pattern = re.compile(
+    r'startFen:\s*(AcademyCourse\.initial|"[^"]+"),\s*'
+    r'beats:\s*\[(.*?)\],\s*takeaway:',
+    re.DOTALL,
+)
+scenario_entries = scenario_pattern.findall(simulations)
+assert len(scenario_entries) == 7, f"Expected 7 simulation scenarios, got {len(scenario_entries)}"
+for i, (fen_label, beats_text) in enumerate(scenario_entries):
+    fen = INITIAL if fen_label == "AcademyCourse.initial" else fen_label.strip('"')
+    board = chess.Board(fen)
+    assert board.is_valid(), f"Invalid simulation FEN at scenario #{i + 1}: {fen}"
+    assert board.turn == chess.WHITE, f"Simulation must start with the learner (White) at #{i + 1}"
+    moves = re.findall(r'\.init\(uci:\s*"([a-h][1-8][a-h][1-8][qrbn]?)"', beats_text)
+    for move_text in moves:
+        move = chess.Move.from_uci(move_text)
+        assert move in board.legal_moves, (
+            f"Illegal simulated move {move_text} in scenario #{i + 1} at {board.fen()}"
+        )
+        board.push(move)
+    if i == 5:
+        assert board.is_checkmate(), "First checkmate scenario must end in checkmate."
+    if i == 6:
+        assert not moves, "Coached free-play mode must not force scripted moves."
+print("PASS: 7 simulator scenarios, all scripted legal moves and final checkmate.")
+
 print("PASS: ", len(swift_lessons), "validated iOS/web lessons and puzzles.")
 print("Validated full FEN positions, every UCI move and checkmate exercises.")
