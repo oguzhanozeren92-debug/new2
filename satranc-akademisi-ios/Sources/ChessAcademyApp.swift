@@ -79,7 +79,7 @@ struct AcademyHomeView: View {
                         Text("Her hamlede daha iyi ol.")
                             .font(.system(.largeTitle, design: .serif, weight: .bold))
                             .foregroundStyle(Theme.cream)
-                        Text("Tahtada öğren, hamleni yap, nedenini anla. Merhaba, \(nickname)!")
+                        Text("Satranç bilmiyor musun? Önce taşları tanı, sonra adı olan hamleleri ve taktikleri tahtada deneyerek öğren. Merhaba, \(nickname)!")
                             .foregroundStyle(.secondary)
                         Button(action: onLearning) {
                             Label("Eğitime Devam Et", systemImage: "play.fill")
@@ -122,6 +122,20 @@ struct CoursesView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("İlk önce buradan başla") {
+                    NavigationLink {
+                        MoveNotationGuideView()
+                    } label: {
+                        Label("Hamlelerin dili: Af3, 0-0, +, #", systemImage: "text.book.closed.fill")
+                            .foregroundStyle(Theme.gold)
+                    }
+                    NavigationLink {
+                        TacticGlossaryView()
+                    } label: {
+                        Label("Taktik sözlüğü: Çatal, Açmaz, Şiş...", systemImage: "lightbulb.fill")
+                            .foregroundStyle(Theme.gold)
+                    }
+                }
                 ForEach(AcademyCourse.all) { course in
                     Section {
                         ForEach(course.lessons) { lesson in
