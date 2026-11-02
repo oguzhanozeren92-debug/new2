@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import ChessboardKit
 import ChessKit
 
@@ -84,7 +85,6 @@ struct SimulationSessionView: View {
     @State private var comment = "İlk hamle için bir taş seç. Gidebileceği kareleri göreceksin."
     @State private var caution: String? = nil
     @State private var showReport = false
-    @State private var showScript = false
     @AppStorage("academy.scenarios.completed") private var completed = ""
 
     init(scenario: ChessScenario) {
