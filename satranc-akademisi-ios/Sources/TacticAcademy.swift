@@ -1,4 +1,5 @@
 import SwiftUI
+import ChessKit
 
 /// Original Turkish explanations for beginner-level chess patterns.
 /// Named motifs are factual chess concepts, not copied course text.
@@ -152,7 +153,7 @@ enum TurkishMoveNotation {
     static func localized(_ san: String) -> String {
         guard let first = san.first else { return san }
         let letter: [Character: String] = ["N":"A", "B":"F", "R":"K", "Q":"V", "K":"Ş"]
-        var output = letter[first].map { $0 + san.dropFirst() } ?? san
+        var output = letter[first].map { $0 + String(san.dropFirst()) } ?? san
         let promotion: [String: String] = ["=N":"=A", "=B":"=F", "=R":"=K", "=Q":"=V"]
         for (english, turkish) in promotion {
             output = output.replacingOccurrences(of: english, with: turkish)
@@ -163,5 +164,71 @@ enum TurkishMoveNotation {
     static func explained(_ san: String) -> String {
         let localizedMove = localized(san)
         return localizedMove == san ? san : "\(localizedMove) (uluslararası: \(san))"
+    }
+    static func describe(_ move: Move, in game: Game) -> String {
+        let kind = game.position.board[move.from]?.kind.description.lowercased() ?? "p"
+        let names = ["p":"Piyon", "n":"At", "b":"Fil", "r":"Kale", "q":"Vezir", "k":"Şah"]
+        let from = move.from.coordinate
+        let to = move.to.coordinate
+
+        if kind == "k" && abs(move.from.file - move.to.file) == 2 {
+            return move.to.file > move.from.file ? "Kısa rok (O-O)" : "Uzun rok (O-O-O)"
+        }
+
+        let captures = game.position.board[move.to] != nil ||
+                       (kind == "p" && move.from.file != move.to.file)
+        let transition = captures ? " × " : " → "
+        let title = (names[kind] ?? "Taş") + " " + from + transition + to
+        let after = game.deepCopy()
+        after.make(move: move)
+        if after.isMate { return title + " · ŞAH MAT!" }
+        if after.isCheck { return title + " · ŞAH!" }
+        if move.promotion != nil { return title + " · Terfi!" }
+        return title
+    }
+
+}
+
+struct MoveNotationGuideView: View {
+    private let examples: [(String, String)] = [
+        ("e4", "Beyaz piyon e4 karesine gidiyor. Piyon hamlesinde taş harfi yazılmaz."),
+        ("Af3 / Nf3", "At f3 karesine gidiyor. Türkçede A, uluslararası kaynaklarda N kullanılır."),
+        ("Fb5 / Bb5", "Fil b5 karesine gidiyor. Türkçede F, İngilizce notasyonda B."),
+        ("Vh5 / Qh5", "Vezir h5 karesine gidiyor. Türkçede V, uluslararası notasyonda Q."),
+        ("Kxe4 / Rxe4", "Kale e4'teki taşı alıyor. × veya x taş almayı gösterir."),
+        ("O-O", "Kısa rok: şah iki kare kale yönüne gider, kale yanına geçer."),
+        ("O-O-O", "Uzun rok: şah vezir kanadına doğru rok yapar."),
+        ("+", "Hamlenin sonunda şah çekildiğini gösterir."),
+        ("#", "Hamlenin şah mat ile bittiğini gösterir."),
+        ("a8=V / a8=Q", "Piyon son sırada vezire terfi eder. Diğer taşlara terfi de mümkündür.")
+    ]
+
+    var body: some View {
+        List {
+            Section {
+                Text("Satranç tahtasında sütunlar a–h, yatay sıralar 1–8 diye adlandırılır. Beyaz taşlar aşağıda dururken sol alt kare a1'dir.")
+                Text("Bazı kaynaklar aynı hamleleri farklı harflerle yazar. Önce Türkçe adını öğren, yanında uluslararası karşılığını gör.")
+                    .foregroundStyle(.secondary)
+            }
+            Section("Hamleler nasıl okunur?") {
+                ForEach(0..<examples.count, id: \.self) { i in
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(examples[i].0)
+                            .font(.title3.monospaced().weight(.bold))
+                            .foregroundStyle(Theme.gold)
+                        Text(examples[i].1)
+                    }
+                    .padding(.vertical, 6)
+                }
+            }
+            Section("Taşların Türkçe harfleri") {
+                Text("A = At · F = Fil · K = Kale · V = Vezir · Ş = Şah. Piyonun baş harfi kullanılmaz.")
+                Text("Uluslararası yazımda sırasıyla N, B, R, Q ve K kullanılır.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Theme.background)
+        .navigationTitle("Hamlelerin Dili")
     }
 }
