@@ -331,7 +331,20 @@ struct SimulationSessionView: View {
     private func playerMove(_ move: Move, isLegal: Bool) {
         guard playerCanMove else { return }
         guard isLegal, boardModel.game.legalMoves.contains(move) else {
-            comment = "Bu hamle satranç kurallarına uygun değil. Önce taşını seç, sonra vurgulanan karelerden birini dene."
+            let fen = FenSerialization.default.serialize(position: boardModel.game.position)
+            let verdict = ChessMoveCoach.evaluate(game: boardModel.game, move: move)
+            timeline.append(SimulationMoveReview(
+                id: timeline.count + 1,
+                player: "Sen (deneme)",
+                moveName: move.description,
+                notation: "Yasal değil",
+                verdict: verdict,
+                fenBefore: fen,
+                fenAfter: fen,
+                guidedIndexBefore: stepIndex,
+                deviatedBefore: wandered
+            ))
+            comment = "Bu hamle satranç kurallarına uygun değil. Taşın seçilince yasal karelerini göreceksin; yeniden dene."
             caution = nil
             return
         }
@@ -443,7 +456,7 @@ struct SimulationReportView: View {
     let wasExploration: Bool
 
     private var userMoves: [SimulationMoveReview] {
-        timeline.filter { $0.player == "Sen" }
+        timeline.filter { $0.player.hasPrefix("Sen") }
     }
 
     private var goalMoves: Int {
@@ -465,7 +478,7 @@ struct SimulationReportView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 HStack {
-                    metric(String(userMoves.count), "Senin hamlen")
+                    metric(String(userMoves.count), "Hamle/deneme")
                     metric(String(goalMoves), "Hedef hamle")
                     metric(String(warnings), "Dikkat notu")
                 }
