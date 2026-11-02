@@ -4,7 +4,7 @@
 
 ## Kapsam
 - Sadece iPhone (`TARGETED_DEVICE_FAMILY=1`).
-- SwiftUI ana ekran, ders yolu, bulmacalar, Kolay/Orta/Zor botlu oyun, profil, yerel ilerleme silme.
+- SwiftUI ana ekran, **31 uygulamalı ders (11 Lichess CC0 açılışı ve 4 oyun sonu dersi dahil)**, **6 bulmaca**, Kolay/Orta/Zor botlu oyun, profil, yerel ilerleme silme.
 - Apple safe-area uyumlu native görünüm; Dynamic Type uyumlu metinler ve çoğunlukla en az 44 pt dokunma alanları.
 - Giriş zorunlu değil: rumuz veya misafir; seviye seçerken yazı silinmez.
 - Satranç tahtası: ChessboardKit ve ChessKit; MIT kaynaklar. Botlar basit ve gerçek ELO seviyesiyle kalibre edilmemiş.
@@ -37,3 +37,9 @@ Rumuz, eğitim ilerlemesi ve seçilen seviye yalnızca iPhone üzerindeki `UserD
 - Apple App Review Guidelines: https://developer.apple.com/app-store/review/guidelines/
 
 Not: ChessboardKit'in ChessKit 1.x bağımlılığı olduğu için iki paket 1.x sürümde hizalı tutuldu. Xcode paket çözümlemesini doğrulamadan sürüm 2.x'e sabitlenmemeli.
+## İçerik kalite kontrolü (2 Kasım 2026)
+
+- Web ve iOS kaynaklarındaki 31 ders ile 6 bulmacanın FEN/hamle eşleşmeleri ve kimlik tekilliği yapısal olarak kontrol edildi. **Bu gerçek satranç motoruyla oynanış testi değildir.**
+- Tam yasal hamle ve mat doğrulaması için geliştirme aracı: `python3 -m pip install python-chess && python3 satranc-akademisi-ios/Tools/validate_lessons.py`. Bu test App Store dağıtımından önce çalıştırılmalıdır.
+- Kullanılan MIT, BSD-2 ve CC0 kaynakları: [ACIK_KAYNAK_KAYNAKLAR.md](ACIK_KAYNAK_KAYNAKLAR.md).
+- Bot güçleri pedagojik amaçlıdır; Stockfish motoru, rakip eşleştirme sistemi veya resmî ELO karşılığı değildir.
