@@ -110,6 +110,9 @@ struct ChessLessonSession: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle(lesson.title)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if lesson.id.hasPrefix("ilk-") { showHint() }
+        }
     }
 
     private func onMove(move: Move, lan: String, isLegal: Bool) {
@@ -118,7 +121,10 @@ struct ChessLessonSession: View {
         let wanted = lesson.steps[stepIndex].uci
         let entered = lan.lowercased().filter { $0.isLetter || $0.isNumber }
         guard entered == wanted || (wanted.count == 4 && entered.hasPrefix(wanted)) else {
-            feedback = "Bu hamle yasal ama hedef farklı: " + lesson.goal
+            feedback = lesson.id.hasPrefix("ilk-")
+                ? "Güzel deneme! Şimdi sadece dersin istediği hamleyi bulalım. Işıklı taşı ve hedef kareyi takip et."
+                : "Bu hamle yasal ama hedef farklı: " + lesson.goal
+            if lesson.id.hasPrefix("ilk-") { highlightNextMove() }
             return
         }
         let humanMove = TurkishMoveNotation.describe(move, in: boardModel.game)
@@ -127,6 +133,7 @@ struct ChessLessonSession: View {
             boardModel.setFen(FenSerialization.default.serialize(position: boardModel.game.position), lan: lan)
         }
         feedback = humanMove + "\n" + lesson.steps[stepIndex].explanation
+        boardModel.clearHint()
         stepIndex += 1
         if stepIndex == lesson.steps.count { finish() }
         else { playDemonstration() }
@@ -156,17 +163,26 @@ struct ChessLessonSession: View {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
+    private func highlightNextMove() {
+        guard stepIndex < lesson.steps.count else { return }
+        let move = lesson.steps[stepIndex].uci
+        let from = String(move.prefix(2))
+        let target = String(move.dropFirst(2).prefix(2))
+        boardModel.clearHint()
+        boardModel.hint([from, target])
+    }
+
     private func showHint() {
         guard stepIndex < lesson.steps.count else { return }
-        let step = lesson.steps[stepIndex]
-        let a = String(step.uci.prefix(2)), b = String(step.uci.dropFirst(2).prefix(2))
-        feedback = "Önce " + a + ", sonra " + b + " karesine dokun."
-        boardModel.clearHint()
-        for square in [a, b] {
-            guard let file = square.first?.asciiValue,
-                  let rank = Int(String(square.last!)) else { continue }
-            boardModel.hint(row: 8 - rank, column: Int(file) - 97)
+        let move = lesson.steps[stepIndex].uci
+        let from = String(move.prefix(2))
+        let target = String(move.dropFirst(2).prefix(2))
+        if lesson.id.hasPrefix("ilk-") {
+            feedback = "Işıklı taşı seç, ardından ışıklı hedef kareye dokun. Yavaşça dene; yanlış yapabilirsin."
+        } else {
+            feedback = "Önce " + from + ", sonra " + target + " karesine dokun."
         }
+        highlightNextMove()
     }
 
     private func restart() {
