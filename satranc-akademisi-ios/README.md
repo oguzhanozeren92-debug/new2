@@ -4,7 +4,7 @@
 
 ## Kapsam
 - Sadece iPhone (`TARGETED_DEVICE_FAMILY=1`).
-- SwiftUI ana ekran, **36 uygulamalı ders (11 Lichess CC0 açılışı, 5 taktik dersi, 4 oyun sonu dersi dahil)**, **11 bulmaca**, Kolay/Orta/Zor botlu oyun, profil, yerel ilerleme silme.
+- SwiftUI ana ekran, **43 uygulamalı ders (7 ilk hamle, 11 Lichess CC0 açılışı, 5 taktik dersi ve 4 oyun sonu dersi dahil)**, **11 bulmaca**, Kolay/Orta/Zor botlu oyun, profil, yerel ilerleme silme.
 - Apple safe-area uyumlu native görünüm; Dynamic Type uyumlu metinler ve çoğunlukla en az 44 pt dokunma alanları.
 - Giriş zorunlu değil: rumuz veya misafir; seviye seçerken yazı silinmez.
 - Satranç tahtası: ChessboardKit ve ChessKit; MIT kaynaklar. Botlar basit ve gerçek ELO seviyesiyle kalibre edilmemiş.
@@ -39,7 +39,7 @@ Rumuz, eğitim ilerlemesi ve seçilen seviye yalnızca iPhone üzerindeki `UserD
 Not: ChessboardKit'in ChessKit 1.x bağımlılığı olduğu için iki paket 1.x sürümde hizalı tutuldu. Xcode paket çözümlemesini doğrulamadan sürüm 2.x'e sabitlenmemeli.
 ## İçerik kalite kontrolü (2 Kasım 2026)
 
-- Web ve iOS kaynaklarındaki 36 ders ile 11 bulmacanın FEN/hamle eşleşmeleri ve kimlik tekilliği yapısal olarak kontrol edildi. **Bu gerçek satranç motoruyla oynanış testi değildir.**
+- Web ve iOS kaynaklarındaki 43 ders ile 11 bulmacanın FEN/hamle eşleşmeleri ve kimlik tekilliği yapısal olarak kontrol edildi. **Bu gerçek satranç motoruyla oynanış testi değildir.**
 - Tam yasal hamle ve mat doğrulaması için geliştirme aracı: `python3 -m pip install python-chess && python3 satranc-akademisi-ios/Tools/validate_lessons.py`. Bu test App Store dağıtımından önce çalıştırılmalıdır.
 - Kullanılan MIT, BSD-2 ve CC0 kaynakları: [ACIK_KAYNAK_KAYNAKLAR.md](ACIK_KAYNAK_KAYNAKLAR.md).
 - Bot güçleri pedagojik amaçlıdır; Stockfish motoru, rakip eşleştirme sistemi veya resmî ELO karşılığı değildir.
@@ -50,6 +50,20 @@ Not: ChessboardKit'in ChessKit 1.x bağımlılığı olduğu için iki paket 1.x
 - On adet taktik adı, Türkçe açıklama, hamleyi fark etme ipucu, akılda kalacak cümle ve sık yapılan hata örneğiyle sunulur.
 - Çatal, açmaz, şiş, keşif saldırısı ve çifte şah: 5 uygulamalı ders ve 5 ek bulmaca. Dersler yalnızca doğru hamle tahtada oynanınca tamamlanır.
 - Hamle yapıldıktan sonra Türkçe açıklama görüntülenir: **At e4 → f6 · ŞAH!** gibi. İngilizce/Türkçe hamle harfi dönüşüm rehberi sunulur.
-- Bütün 47 eğitim kaydı, iOS ve web içerikleri arasında karşılaştırılarak 0x88 satranç kurallarıyla hamle yasallığı açısından ayrıca kontrol edildi (2 Kasım 2026). Bu, Codemagic/Xcode gerçek derleme ve cihaz testi değildir.
+- Bütün 54 eğitim kaydı, iOS ve web içerikleri arasında karşılaştırılarak 0x88 satranç kurallarıyla hamle yasallığı açısından ayrıca kontrol edildi (2 Kasım 2026). Bu, Codemagic/Xcode gerçek derleme ve cihaz testi değildir.
 - Lichess'in CC0 bulmaca verisinden zorluk ve motif filtreli aday çıkarma aracı: `Tools/import_lichess_tactics.py`. Kullanım ve kaynak: `https://database.lichess.org/#puzzles`.
 - Büyük puzzle aktarımı **otomatik yayın yapmaz**; durum `draft_requires_review_not_live` olarak tutulur. Eğitici açıklamaların kalitesini doğrulamadan bulmaca yayınlanmamalı.
+
+## Yeni başlayanlar için 0. seviye (2 Kasım 2026)
+
+Ana ekrandaki **“Sıfırdan Başla — Hiç bilmiyorum”** bölümü satranç notasyonu bilmeden açılır. Dört hazırlık aşaması ve ilk hamleye geçiş:
+
+1. Satranç nedir? Hedef şah mat etmek; şahı fiziksel olarak taş almaya çalışmak değildir.
+2. Altı taşı gerçek simgelerinden tanıma; her birinin hareketi ve ismi açıklanır. Altısını da dokunarak keşfetme.
+3. Kurallara uygun başlangıç dizilişindeki 64 karelik tahtada beyaz piyonu bulma. Tahta yönü ve kare sistemi görsel anlatılır.
+4. Beyaz mı siyah mı başlar? Hatasız ilerleme zorunlu değil, yanlış seçime açıklama verilir.
+5. **İlk gerçek hamle**: e2–e3, tek karelik piyon hareketi. Yeni başlayanlar için kaynak ve hedef kareleri kendiliğinden işaretlenir.
+
+Bundan sonra **“0. İlk Hamle Alıştırmaları”** içinde ikinci piyon, kale, fil, at, vezir ve şah için birer çok kolay hamle vardır. Taktik, özel kurallar ve hamle notasyonu rehberi sonraki aşamada görünür; ayrı kayıt ve rumuz gerekmez. Bütün alıştırmalar tekrar oynanabilir, süre sınırı ve hata cezası yoktur.
+
+**Dikkat:** SwiftUI başlangıç öğreticisi yeni eklendi; gerçek Xcode derlemesi, cihazda erişilebilirlik ve bütün animasyon akışı henüz doğrulanmadı.
