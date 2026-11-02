@@ -4,7 +4,7 @@
 
 ## Kapsam
 - Sadece iPhone (`TARGETED_DEVICE_FAMILY=1`).
-- SwiftUI ana ekran, **31 uygulamalı ders (11 Lichess CC0 açılışı ve 4 oyun sonu dersi dahil)**, **6 bulmaca**, Kolay/Orta/Zor botlu oyun, profil, yerel ilerleme silme.
+- SwiftUI ana ekran, **36 uygulamalı ders (11 Lichess CC0 açılışı, 5 taktik dersi, 4 oyun sonu dersi dahil)**, **11 bulmaca**, Kolay/Orta/Zor botlu oyun, profil, yerel ilerleme silme.
 - Apple safe-area uyumlu native görünüm; Dynamic Type uyumlu metinler ve çoğunlukla en az 44 pt dokunma alanları.
 - Giriş zorunlu değil: rumuz veya misafir; seviye seçerken yazı silinmez.
 - Satranç tahtası: ChessboardKit ve ChessKit; MIT kaynaklar. Botlar basit ve gerçek ELO seviyesiyle kalibre edilmemiş.
@@ -39,7 +39,17 @@ Rumuz, eğitim ilerlemesi ve seçilen seviye yalnızca iPhone üzerindeki `UserD
 Not: ChessboardKit'in ChessKit 1.x bağımlılığı olduğu için iki paket 1.x sürümde hizalı tutuldu. Xcode paket çözümlemesini doğrulamadan sürüm 2.x'e sabitlenmemeli.
 ## İçerik kalite kontrolü (2 Kasım 2026)
 
-- Web ve iOS kaynaklarındaki 31 ders ile 6 bulmacanın FEN/hamle eşleşmeleri ve kimlik tekilliği yapısal olarak kontrol edildi. **Bu gerçek satranç motoruyla oynanış testi değildir.**
+- Web ve iOS kaynaklarındaki 36 ders ile 11 bulmacanın FEN/hamle eşleşmeleri ve kimlik tekilliği yapısal olarak kontrol edildi. **Bu gerçek satranç motoruyla oynanış testi değildir.**
 - Tam yasal hamle ve mat doğrulaması için geliştirme aracı: `python3 -m pip install python-chess && python3 satranc-akademisi-ios/Tools/validate_lessons.py`. Bu test App Store dağıtımından önce çalıştırılmalıdır.
 - Kullanılan MIT, BSD-2 ve CC0 kaynakları: [ACIK_KAYNAK_KAYNAKLAR.md](ACIK_KAYNAK_KAYNAKLAR.md).
 - Bot güçleri pedagojik amaçlıdır; Stockfish motoru, rakip eşleştirme sistemi veya resmî ELO karşılığı değildir.
+
+## Sıfırdan satranç eğitimi — öğrenme yolu
+
+- Dersler ekranının en başında **Hamlelerin Dili** (e4, Af3/Nf3, taş alma, rok, şah, mat ve terfi) ve **Taktik Sözlüğü** bulunur.
+- On adet taktik adı, Türkçe açıklama, hamleyi fark etme ipucu, akılda kalacak cümle ve sık yapılan hata örneğiyle sunulur.
+- Çatal, açmaz, şiş, keşif saldırısı ve çifte şah: 5 uygulamalı ders ve 5 ek bulmaca. Dersler yalnızca doğru hamle tahtada oynanınca tamamlanır.
+- Hamle yapıldıktan sonra Türkçe açıklama görüntülenir: **At e4 → f6 · ŞAH!** gibi. İngilizce/Türkçe hamle harfi dönüşüm rehberi sunulur.
+- Bütün 47 eğitim kaydı, iOS ve web içerikleri arasında karşılaştırılarak 0x88 satranç kurallarıyla hamle yasallığı açısından ayrıca kontrol edildi (2 Kasım 2026). Bu, Codemagic/Xcode gerçek derleme ve cihaz testi değildir.
+- Lichess'in CC0 bulmaca verisinden zorluk ve motif filtreli aday çıkarma aracı: `Tools/import_lichess_tactics.py`. Kullanım ve kaynak: `https://database.lichess.org/#puzzles`.
+- Büyük puzzle aktarımı **otomatik yayın yapmaz**; durum `draft_requires_review_not_live` olarak tutulur. Eğitici açıklamaların kalitesini doğrulamadan bulmaca yayınlanmamalı.
