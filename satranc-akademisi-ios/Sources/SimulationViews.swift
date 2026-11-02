@@ -159,7 +159,7 @@ struct SimulationSessionView: View {
             VStack(alignment: .leading, spacing: 13) {
                 VStack(alignment: .leading, spacing: 9) {
                     HStack {
-                        Label("YAŞAYARAK ÖĞREN", systemImage: "theatermasks.fill")
+                        Label("YAŞAYARAK ÖĞREN", systemImage: "suit.spade.fill")
                             .font(.caption.weight(.heavy)).foregroundStyle(Theme.gold)
                         Spacer()
                         Text(scenario.difficulty)
@@ -169,6 +169,7 @@ struct SimulationSessionView: View {
                     }
                     Text(scenario.title)
                         .font(.system(.title2, design: .serif, weight: .bold))
+                        .foregroundStyle(Theme.cream)
                     Text(scenario.story)
                         .font(.subheadline)
                     Text(scenario.mission)
@@ -234,14 +235,24 @@ struct SimulationSessionView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 9) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "brain.head.profile")
-                            .foregroundStyle(Theme.gold)
-                        Text("Hamle Hocası")
-                            .font(.headline)
+                    HStack(spacing: 11) {
+                        ChessPieceBadge(piece: .bishop, size: 44, highlighted: true)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("HAMLE HOCASI")
+                                .font(.system(size: 10, weight: .heavy))
+                                .tracking(1.2)
+                                .foregroundStyle(Theme.gold)
+                            Text("Hamle analizin")
+                                .font(.system(.headline, design: .serif))
+                                .foregroundStyle(Theme.cream)
+                        }
                         Spacer()
-                        Text("Kural tabanlı")
-                            .font(.caption).foregroundStyle(.secondary)
+                        Text("KOÇ")
+                            .font(.system(size: 10, weight: .heavy))
+                            .foregroundStyle(Theme.champagne)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 6)
+                            .background(Theme.gold.opacity(0.12), in: Capsule())
                     }
                     Text(comment)
                         .font(.subheadline)
@@ -254,7 +265,9 @@ struct SimulationSessionView: View {
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                .background(Theme.raised, in: RoundedRectangle(cornerRadius: 17))
+                .overlay(RoundedRectangle(cornerRadius: 17)
+                    .stroke(Theme.gold.opacity(0.35), lineWidth: 1))
 
                 if awaitingOpponent {
                     Button {
