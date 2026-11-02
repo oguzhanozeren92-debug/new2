@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import ChessboardKit
 
 /// Shared navy/bronze design language. All icons are chess-piece glyphs
 /// rendered locally as vectors/text: no internet, stock photos or permissions.
@@ -250,6 +251,17 @@ struct PremiumStat: View {
         .padding(.vertical, 13)
         .background(Theme.raised.opacity(0.5), in: RoundedRectangle(cornerRadius: 13))
     }
+}
+
+/// Warm ivory and walnut squares, softer than the library's default grey.
+/// Keep legal targets high-contrast green; hints glow gold for first-time users.
+struct PremiumBoardColors: ChessboardColorScheme {
+    let light = Color(red: 0.94, green: 0.84, blue: 0.68)
+    let dark = Color(red: 0.54, green: 0.37, blue: 0.25)
+    let label = Color(red: 0.15, green: 0.13, blue: 0.11)
+    let selected = Color(red: 0.98, green: 0.81, blue: 0.37)
+    let hinted = Color(red: 1.0, green: 0.76, blue: 0.31)
+    let legalMove = Color(red: 0.21, green: 0.62, blue: 0.38, opacity: 0.6)
 }
 
 struct PremiumChessBoardFrame<Content: View>: View {
