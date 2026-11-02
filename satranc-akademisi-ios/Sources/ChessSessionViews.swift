@@ -134,7 +134,7 @@ struct ChessLessonSession: View {
 
     private func playDemonstration() {
         while stepIndex < lesson.steps.count,
-              boardModel.game.position.fen.split(separator: " ").dropFirst().first == "b" {
+              boardModel.game.position.state.turn == .black {
             let reply = lesson.steps[stepIndex]
             let humanMove = TurkishMoveNotation.describe(Move(string: reply.uci), in: boardModel.game)
             boardModel.game.make(move: reply.uci)
