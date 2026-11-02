@@ -38,113 +38,30 @@ struct AcademyRootView: View {
     @State private var selectedTab: AcademyTab = .home
 
     var body: some View {
-        Group {
-            if nickname.isEmpty {
-                AcademyOnboarding(nickname: $nickname, skill: $skill)
-            } else {
-                TabView(selection: $selectedTab) {
-                    AcademyHomeView(nickname: nickname) { selectedTab = .lessons }
-                        .tabItem { Label(AcademyTab.home.rawValue, systemImage: AcademyTab.home.icon) }
-                        .tag(AcademyTab.home)
-                    CoursesView()
-                        .tabItem { Label(AcademyTab.lessons.rawValue, systemImage: AcademyTab.lessons.icon) }
-                        .tag(AcademyTab.lessons)
-                    PuzzlesView()
-                        .tabItem { Label(AcademyTab.puzzles.rawValue, systemImage: AcademyTab.puzzles.icon) }
-                        .tag(AcademyTab.puzzles)
-                    BotMenuView()
-                        .tabItem { Label(AcademyTab.play.rawValue, systemImage: AcademyTab.play.icon) }
-                        .tag(AcademyTab.play)
-                    AcademyProfileView(nickname: $nickname, skill: $skill)
-                        .tabItem { Label(AcademyTab.profile.rawValue, systemImage: AcademyTab.profile.icon) }
-                        .tag(AcademyTab.profile)
-                }
+        TabView(selection: $selectedTab) {
+            AcademyHomeView(nickname: nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Misafir" : nickname) {
+                selectedTab = .lessons
             }
+            .tabItem { Label(AcademyTab.home.rawValue, systemImage: AcademyTab.home.icon) }
+            .tag(AcademyTab.home)
+
+            CoursesView()
+                .tabItem { Label(AcademyTab.lessons.rawValue, systemImage: AcademyTab.lessons.icon) }
+                .tag(AcademyTab.lessons)
+
+            PuzzlesView()
+                .tabItem { Label(AcademyTab.puzzles.rawValue, systemImage: AcademyTab.puzzles.icon) }
+                .tag(AcademyTab.puzzles)
+
+            BotMenuView()
+                .tabItem { Label(AcademyTab.play.rawValue, systemImage: AcademyTab.play.icon) }
+                .tag(AcademyTab.play)
+
+            AcademyProfileView(nickname: $nickname, skill: $skill)
+                .tabItem { Label(AcademyTab.profile.rawValue, systemImage: AcademyTab.profile.icon) }
+                .tag(AcademyTab.profile)
         }
         .background(Theme.background.ignoresSafeArea())
-    }
-}
-
-struct AcademyOnboarding: View {
-    @Binding var nickname: String
-    @Binding var skill: String
-    @State private var input = ""
-    @State private var selectedSkill = "Yeni başlıyorum"
-    @State private var warning = ""
-    private let levels = ["Yeni başlıyorum", "Biraz biliyorum", "İyi biliyorum"]
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 22) {
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 47))
-                        .foregroundStyle(Theme.gold)
-                        .accessibilityHidden(true)
-                    Text("Satranç yolculuğun başlıyor")
-                        .font(.system(.largeTitle, design: .serif, weight: .bold))
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(Theme.cream)
-                    Text("Derslere başlamak için bir rumuz ve seviyeni seç. E-posta gerekmiyor.")
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-                    TextField("Rumuzun", text: $input)
-                        .textContentType(.nickname)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .padding(14)
-                        .background(.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
-                        .accessibilityLabel("Oyuncu rumuzu")
-                    VStack(spacing: 9) {
-                        ForEach(levels, id: \.self) { level in
-                            Button {
-                                selectedSkill = level
-                                warning = ""
-                            } label: {
-                                HStack {
-                                    Text(level)
-                                    Spacer()
-                                    if selectedSkill == level { Image(systemName: "checkmark.circle.fill") }
-                                }
-                                .frame(minHeight: 44)
-                                .padding(.horizontal, 14)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(selectedSkill == level ? Theme.gold : .gray)
-                            .accessibilityAddTraits(selectedSkill == level ? .isSelected : [])
-                        }
-                    }
-                    Button("Öğrenmeye Başla") { start() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Theme.gold)
-                        .foregroundStyle(.black)
-                        .frame(minHeight: 44)
-                    Button("Rumuz oluşturmadan dene") {
-                        nickname = "Misafir"
-                        skill = selectedSkill
-                    }
-                    .buttonStyle(.borderless)
-                    .frame(minHeight: 44)
-                    if !warning.isEmpty {
-                        Text(warning).foregroundStyle(.red).accessibilityAddTraits(.updatesFrequently)
-                    }
-                }
-                .padding(22)
-                .frame(maxWidth: 540)
-                .frame(maxWidth: .infinity)
-            }
-            .background(Theme.background.ignoresSafeArea())
-        }
-    }
-
-    private func start() {
-        let candidate = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (3...20).contains(candidate.count) else {
-            warning = "Rumuz 3–20 karakter olmalı."
-            return
-        }
-        skill = selectedSkill
-        nickname = candidate
     }
 }
 
@@ -297,7 +214,12 @@ struct AcademyProfileView: View {
         NavigationStack {
             Form {
                 Section("Oyuncu") {
-                    LabeledContent("Rumuz", value: nickname)
+                    TextField("Rumuz (isteğe bağlı)", text: $nickname)
+                        .textContentType(.nickname)
+                        .autocorrectionDisabled()
+                    Text("Rumuz yazmak zorunda değilsin. Boş bırakırsan Misafir olarak devam edersin.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                     LabeledContent("Başlangıç", value: skill)
                     LabeledContent("Tamamlanan ders", value: "\(completed.split(separator: ",").count)")
                 }
