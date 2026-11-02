@@ -81,3 +81,19 @@ Ana sayfa ve Dersler ekranına **Senaryolu Simülasyon** girişi eklendi. iOS ka
 Senaryo dizilerinin tamamı 0x88 satranç kurallarıyla doğrulandı: örneklerde **yasal olmayan hamle yok**, mat senaryosu gerçekten mat ile biter. Ancak iPhone'da Xcode/Codemagic derlemesi, gerçek cihaz testi ve oynanış/erişilebilirlik doğrulaması **henüz yapılmadı**.
 
 **Önemli şeffaflık notu:** Hamle Hocası bu ilk sürümde **kural ve bir hamle derinliğindeki taktik kontrolü** kullanır. Bu sistem Stockfish, güçlü motorla derin varyasyon taraması, bulut yapay zekâsı veya kesin “en iyi hamle” analizi değildir. İleri düzey alternatif hamle sıralaması ve puanlama için lisans şartları gözetilerek ayrı bir motor entegrasyonu yapılmalıdır.
+
+## Premium görsel kimlik — satranç taşı ikonları (2 Kasım 2026)
+
+Koyu lacivert + şampanya-altını konsepti uygulamanın tamamına uyarlanmıştır.
+Kaynak: `Sources/PremiumChessDesign.swift`.
+
+- Ana ekranda büyük başlangıç kartı, 3 ilerleme ölçeri, simülasyon öne çıkarma kartı ve her eğitim bölümü için ayrı satranç taşı ikonlu kartlar.
+- Alt sekmelerde standart simgeler yerine native `UIImage` olarak çizilen **şah, piyon, at, kale ve vezir** ikonları; aktif sekme altın, pasif sekmeler soğuk gümüş.
+- Dersler, bulmacalar, bot seçimi, senaryo lobisi ve profil aynı metalik kenarlı kartları ve başlık düzenini kullanır.
+- Oynanabilir tahtalar: ceviz kahvesi ve sıcak fildişi kareler, altın metal çerçeve, yeşil yasal hamle vurgusu, altın ipucu işaretleri. ChessboardKit'in `ChessboardColorScheme` protokolüyle uygulanır; taşların kuralları veya skorları değiştirilmez.
+- Hamle Hocası paneli satranç fili simgeli, altın konturlu analiz kartı oldu.
+- Sıfırdan Başla ekranına piyon amblemi ve premium koyu fon eklendi.
+- `Tools/generate_icon.swift`: Codemagic/macOS build sırasında orijinal, tam renkli **1024×1024 altın at + madalyon** PNG uygulama ikonunu oluşturur. `Resources/Assets.xcassets/AppIcon.appiconset/Contents.json` bu dosyayı kullanır.
+- Tüm motifler kodla çizilir, dış görsel hizmeti veya internet izni gerektirmez; küçük iPhone ekranları için ana sayfadaki büyük metinlerde satır sınırı ve esnek düzen kullanılır.
+
+**Not:** Burada kaynak dosyaları değiştirildi ve GitHub'a kaydedildi. Xcode/Codemagic derlemesi, AppKit ikonun gerçek PNG render'ı ve iPhone üzerinde görsel QA henüz yapılmadı. Kullanıcıya verilmiş canlı Vercel sürümü yeni SwiftUI tasarımını göstermez.
